@@ -1,0 +1,9 @@
+# Local-only configuration and secrets (see config/example.json)
+config/local.json
+*.pfx
+*.pem
+*.key
+
+# Run artifacts
+out/
+*.log

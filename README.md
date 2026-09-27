@@ -78,11 +78,9 @@ To make the marketplace available to everyone who works in a project, commit thi
 
 ## Agent catalog
 
-> The catalog is being built. Agents are added here as they are published.
-
 | Plugin | What it does | Components | Status |
 | --- | --- | --- | --- |
-| _coming soon_ | | | |
+| [`email-orchestrator`](plugins/email-orchestrator) | Briefs, categorizes, tracks unanswered important emails, flags phishing, cleans up the inbox, and drafts and sends email (each after you confirm) across Gmail, Outlook, and other connected mail services | 1 subagent, 6 skills | `0.2.1` — beta |
 
 Each plugin folder contains its own `README.md` covering usage, required tools, example prompts, and known limitations.
 
@@ -220,7 +218,7 @@ These are the rules every agent in this repository follows.
 
 ## Roadmap
 
-- [ ] Marketplace manifest and first plugin
+- [x] Marketplace manifest and first plugin
 - [ ] Per-agent evaluation prompts (should-trigger and should-not-trigger cases)
 - [ ] CI validation of `marketplace.json`, `plugin.json`, and agent frontmatter
 - [ ] Multi-agent workflows that compose several agents from this catalog

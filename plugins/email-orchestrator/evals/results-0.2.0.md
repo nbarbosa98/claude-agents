@@ -26,7 +26,7 @@
 
 ## Findings to address
 
-1. **The draft-only request still offered to send (#19).** The composer skill should say that a preview for a draft-only request ends with "Draft saved" and no send prompt.
-2. **Sending financial data or credentials to a thread rated High (#20).** The run's hard refusal is arguably safer than the spec's "warn, then send if the user approves again". Decide which behavior is intended, then align the spec and the eval.
-3. **A failed send later "resends without asking again" (#24).** The agent offered to resend later on the earlier approval. Consider requiring a fresh preview and approval after any failure.
+1. **The draft-only request still offered to send (#19).** Fixed in 0.2.1.
+2. **Sending financial data or credentials to a thread rated High (#20).** Decided by the user: always refuse. Sending sensitive data is always a manual action, whoever the recipient. Fixed in 0.2.1.
+3. **A failed send later "resends without asking again" (#24).** Fixed in 0.2.1: a failure cancels the approval.
 4. **Coverage gaps.** #11, #13, #15, and #17 need a Gmail connection with write access and a real plugin install (`--plugin-dir`, or installing from the marketplace).

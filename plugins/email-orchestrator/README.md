@@ -56,7 +56,11 @@ Or run a single skill directly:
 3. You reply **"send"**, or ask for changes. Any change produces a new preview that needs a new approval.
 4. It sends that exact version, reports the message ID, and logs the send. **A sent email cannot be undone.**
 
-It warns you before sending in these cases: the thread looks like phishing, the Reply-To differs from the sender, the body contains credentials or payment details, recipients are new or unusual, or the recipient list doesn't match your request.
+It warns you before sending in these cases: the thread looks like phishing, the Reply-To differs from the sender, the body contains payment instructions, recipients are new or unusual, or the recipient list doesn't match your request.
+
+**Always a manual action:** the agent never puts passwords, one-time or 2FA codes, full bank, IBAN, or card numbers, banking credentials, or government ID numbers in any email it drafts, sends, or forwards — even if you ask and approve. It refuses, and you send that data yourself. For a reply to a thread rated High-risk phishing, it also recommends not replying at all.
+
+If a send fails, the approval is cancelled. Trying again requires a fresh preview and a new approval.
 
 ### Getting alerts on a schedule
 
@@ -128,5 +132,6 @@ See [`evals/prompts.md`](evals/prompts.md) for cases that should and should not 
 
 ## Changelog
 
+- **0.2.1** — Sensitive data (credentials, codes, full bank or card numbers, government IDs) is never included in outgoing mail and is always sent manually by you. Draft-only requests no longer offer to send. A failed send needs a fresh approval.
 - **0.2.0** — Adds `email-composer`: draft, reply, forward, and send on request after the final version is approved. Adds a confirmation protocol for subagent runs and recommends `ask` permission rules for send tools.
 - **0.1.0** — First release: briefing, triage, follow-ups, phishing detection, confirmed cleanup, cross-provider discovery.

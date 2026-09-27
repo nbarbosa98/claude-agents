@@ -1,6 +1,6 @@
 {
   "name": "email-orchestrator",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Cross-provider email assistant: briefings, auto-categorization, unanswered-email alerts, phishing detection, confirmed inbox cleanup, and approval-gated drafting and sending across Gmail, Outlook, and other connected mail services.",
   "author": {
     "name": "Nelson Barbosa"

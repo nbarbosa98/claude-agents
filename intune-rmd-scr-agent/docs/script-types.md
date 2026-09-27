@@ -1,7 +1,8 @@
 # Script types - DRAFT for owner review
 
-Status: **PROPOSED**. Nothing here is final until the owner approves it. Once approved,
-it becomes `contract/stdout.json` plus one reference file per type under
+Status: **ACCEPTED** (owner review, Phase 0). The open questions in section 6 were not
+answered individually, so the proposed defaults apply. Pattern A's install mechanism is
+re-opened by ADR-016. This document becomes `contract/stdout.json` plus one reference file per type under
 `.claude/skills/intune-remediation/references/`.
 
 Target: Windows-only fleet, Intune Remediations, run as SYSTEM, 64-bit, Windows

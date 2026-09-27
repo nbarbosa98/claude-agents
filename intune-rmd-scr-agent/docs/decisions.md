@@ -66,7 +66,7 @@ not objected, can be revisited), `PROPOSED` (awaiting owner), `OPEN`.
   - A CVE fixed by an app update: `vuln-remediation-agent` owns the package, and reuses
     the app-update detection/remediation blocks rather than a second update code path.
   - Ambiguous requests: the orchestrator asks. It never guesses a type.
-- **Status:** PROPOSED.
+- **Status:** ACCEPTED (ADR-015).
 
 ## ADR-005 Auth: the user's own credentials (delegated)
 
@@ -152,7 +152,7 @@ not objected, can be revisited), `PROPOSED` (awaiting owner), `OPEN`.
   `<App> update to <version> failed: <reason>`.
 - **Output limit (verified):** 2,048 characters maximum. Source: deploy-remediations.md
   (commit 4b5429d), "Script requirements". The linter will enforce a lower budget.
-- **Status:** PROPOSED.
+- **Status:** ACCEPTED (ADR-015).
 
 ## ADR-012 D2, D3, D5 defaults
 
@@ -173,7 +173,7 @@ not objected, can be revisited), `PROPOSED` (awaiting owner), `OPEN`.
 - **Decision:** all scripts are ASCII-only, which is byte-identical in UTF-8 (no BOM)
   and Windows-1252. The original plan's "save as Windows-1252 to mimic Intune" is
   replaced by "save as UTF-8 without BOM", per the docs.
-- **Status:** PROPOSED.
+- **Status:** ACCEPTED (ADR-015).
 
 ## ADR-014 Time budget
 
@@ -183,6 +183,56 @@ not objected, can be revisited), `PROPOSED` (awaiting owner), `OPEN`.
   the Remediations docs (searched memdocs at commit 4b5429d). It is measured in the
   lab before the ceiling is finalised.
 - **Status:** DEFAULT.
+
+## ADR-015 Script types accepted
+
+- **Decision:** `docs/script-types.md` accepted by the owner. Section 6 questions take the
+  proposed defaults: status line `<TOKEN> | <message>`; fail-safe `NOT_DETERMINED` exit 0
+  when state is unknown (all types, including vuln); audit exits 1 on a finding; the
+  config-change guardrail list as drafted; no extra types.
+- ADR-004 (routing), ADR-011 (contract) and ADR-013 (encoding) move to ACCEPTED with it.
+- **Status:** ACCEPTED.
+
+## ADR-016 winget under SYSTEM is unsupported (re-opens Pattern A)
+
+- **Fact:** "the WinGet CLI is not supported in the system context. The
+  Microsoft.WinGet.Client PowerShell module can be used in the system context with
+  applications that are installed machine wide." Source:
+  https://raw.githubusercontent.com/MicrosoftDocs/windows-dev-docs/docs/hub/package-manager/winget/troubleshooting.md
+  (section "System Context").
+- **Fact:** `Microsoft.WinGet.Client` declares `CompatiblePSEditions = Desktop, Core` and
+  `PowerShellVersion = 5.1.0`, so it can load in Windows PowerShell 5.1. It exposes
+  `Get-WinGetPackage` (objects with `IsUpdateAvailable`), `Update-WinGetPackage`
+  (`-Mode Silent`, `-Scope`, `-IncludeUnknown`, `-MatchOption`) and
+  `Repair-WinGetPackageManager` (`-AllUsers`, `-Latest`). Sources:
+  microsoft/winget-cli `src/PowerShell/Microsoft.WinGet.Client/ModuleFiles/Microsoft.WinGet.Client.psd1`
+  and `src/PowerShell/Help/Microsoft.WinGet.Client/*.md` (master, fetched 2026-09-27).
+- **Options:**
+  - (a) `Microsoft.WinGet.Client` module, pre-installed on devices by a separate
+    prerequisite package (AllUsers module path, pinned version). If it is missing,
+    detection reports `NOT_DETERMINED`, exit 0. The supported path. Object output also
+    removes the locale problem of parsing `winget` text.
+  - (b) Call `winget.exe` from its `WindowsApps` folder. Widely used, but explicitly
+    unsupported by Microsoft.
+  - (c) Skip winget and use vendor-direct installs (Pattern B1) for every app. More
+    per-app work and no catalog.
+- **Recommendation:** (a). UNVERIFIED until the lab: behaviour under SYSTEM with 64-bit
+  Windows PowerShell 5.1, the module's App Installer dependency, and run time.
+- **Status:** PROPOSED.
+
+## ADR-017 Lab VM topology
+
+- **Decision (PROPOSED):** two roles, never mixed.
+  - **Gate 4 VM:** x64 Windows 11 Enterprise, not Intune-enrolled, reverted to a
+    `baseline` snapshot before each run.
+  - **Pilot device(s):** Entra-joined, Intune-enrolled, never reverted. Used for the
+    Phase 5 pilot ring.
+- **Why separate (inference):** reverting a snapshot rolls back enrollment and
+  certificate state, which can leave the device inconsistent with Intune. An enrolled VM
+  would also receive real policies during tests, which contaminates Gate 4 results.
+- **Why x64:** on Apple-silicon Macs, local hypervisors run Windows 11 on ARM64. There,
+  installer selection and emulation differ from an x64 fleet.
+- **Status:** PROPOSED (backend choice pending; see chat).
 
 ## Open
 

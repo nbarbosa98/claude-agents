@@ -1,6 +1,6 @@
 # email-orchestrator
 
-A cross-provider email assistant for Claude Code. It briefs you on new mail, categorizes it, alerts you to important emails you haven't answered, flags likely phishing, and cleans up clutter — across **Gmail, Outlook / Microsoft 365, and any other email connector** Claude has access to.
+A cross-provider email assistant for Claude Code. It briefs you on new mail, categorizes it, alerts you to important emails you haven't answered, flags likely phishing, cleans up clutter, and drafts and sends email when you ask — across **Gmail, Outlook / Microsoft 365, and any other email connector** Claude has access to.
 
 | Component | Type | Job |
 | --- | --- | --- |
@@ -10,6 +10,7 @@ A cross-provider email assistant for Claude Code. It briefs you on new mail, cat
 | `followup-tracker` | Skill | Important threads where the last message is to you and you haven't replied |
 | `phishing-detection` | Skill | Checks sender, domain, header, content, and attachment signals, and rates each message High, Medium, or Low |
 | `inbox-cleanup` | Skill | Proposes a cleanup plan → you confirm → carries it out → logs it so it can be undone |
+| `email-composer` | Skill | Drafts new emails, replies, and forwards; sends only when you ask and after you approve the final preview |
 
 ## Prerequisites
 
@@ -31,6 +32,9 @@ Use the email-orchestrator agent to brief me on email since yesterday.
 What important emails haven't I replied to this week?
 Is the "DocuSign – invoice pending" email in my Outlook legit?
 Clean up promotions older than 30 days in Gmail.
+Draft a reply to Ana saying Tuesday at 3pm works.    # drafts only
+Reply to Ana that Tuesday at 3pm works and send it.  # preview → you say "send" → sent
+Forward the Acme invoice to accounting@mycompany.com.
 Check my email.            # brief → phishing → follow-ups → categorization plan
 ```
 
@@ -42,16 +46,26 @@ Or run a single skill directly:
 /email-orchestrator:phishing-detection
 /email-orchestrator:email-triage unlabeled
 /email-orchestrator:inbox-cleanup promotions older than 30 days
+/email-orchestrator:email-composer reply to Ana: Tuesday at 3pm works
 ```
+
+### How sending works
+
+1. You ask it to write, reply, or forward. Asking to *draft* only creates a draft.
+2. It creates a draft in the right account (where the connector supports drafts) and shows a full preview: account, To/CC/BCC, subject, body, attachments, and any warnings.
+3. You reply **"send"**, or ask for changes. Any change produces a new preview that needs a new approval.
+4. It sends that exact version, reports the message ID, and logs the send. **A sent email cannot be undone.**
+
+It warns you before sending in these cases: the thread looks like phishing, the Reply-To differs from the sender, the body contains credentials or payment details, recipients are new or unusual, or the recipient list doesn't match your request.
 
 ### Getting alerts on a schedule
 
 An agent only runs when something invokes it; it can't send a push alert by itself. To get alerts regularly:
 
-- **Claude Code on the web / app:** create a **Routine** (a scheduled task) with a prompt such as *"Use the email-orchestrator agent: run a briefing, a phishing check, and a follow-up check for the last 24h. Do not change anything in the mailboxes."*
+- **Claude Code on the web / app:** create a **Routine** (a scheduled task) with a prompt such as *"Use the email-orchestrator agent: run a briefing, a phishing check, and a follow-up check for the last 24h. Do not change anything in the mailboxes and do not send anything."*
 - **CLI:** `/loop 4h Use the email-orchestrator agent for a phishing and follow-up check` while a session is open, or a cron job running `claude -p "…"`.
 
-Keep scheduled runs **read-only** (as in the prompt above). Cleanup needs you there to confirm the plan.
+Keep scheduled runs **read-only** (as in the prompt above). Cleanup and sending need you there to confirm; the agent is instructed never to send during unattended runs.
 
 ## How it works
 
@@ -65,27 +79,31 @@ Keep scheduled runs **read-only** (as in the prompt above). Cleanup needs you th
 | Risk | Control | Type of control |
 | --- | --- | --- |
 | Instructions hidden in an email (prompt injection) cause the agent to act | The prompt treats all email as untrusted data; injection attempts count as a phishing signal | Prompt-level (mitigation) |
-| Mail sent or forwarded without you | The agent never sends, replies, or forwards — drafts only | Prompt-level (mitigation) |
+| Mail sent or forwarded without you, or to the wrong person | Sends only on your request in chat, after you approve the exact final preview; recipients come only from you or the thread, never from email text; never sends during scheduled runs | Prompt-level (mitigation) — add the `ask` rules below to **enforce** it |
+| An email tricks the agent into replying to an attacker | Warnings for suspicious threads, Reply-To mismatches, and sensitive content; sending again requires your approval after you've seen the warning | Prompt-level (mitigation) |
 | Mail lost | No permanent delete; Trash only (recoverable); protected categories are never touched; each change is logged with an undo step | Prompt-level + provider's Trash retention |
 | Unwanted bulk changes | Every mailbox change needs you to confirm the specific plan | Prompt-level |
 | Clicking malicious links | `WebFetch`, `WebSearch`, and the known browser / computer-use MCP servers are in `disallowedTools`; links are only read as text | **Enforced** for the listed tools; a browser MCP under another server name would slip through `mcp__*` |
 | Local file or shell changes | No `Bash`; `Write`/`Edit` are there only for the memory files | Partly enforced |
 
-**Important limitation:** `tools: …, mcp__*` gives the agent *every* connected MCP tool, including send tools and tools from servers that have nothing to do with email. The rules against sending are in the prompt; nothing technically blocks them. For a hard guarantee, add deny rules for your send and forward tools in `~/.claude/settings.json`, using the exact tool names shown by `/mcp` in your setup. For example:
+**Important limitation:** `tools: …, mcp__*` gives the agent *every* connected MCP tool, including tools from servers that have nothing to do with email. The approval step before sending is in the agent's instructions; on its own, nothing technically enforces it. **Recommended — enforce it:** add `ask` rules to `~/.claude/settings.json` so Claude Code shows you its own permission prompt before every send, reply, or forward, whatever the agent decides:
 
 ```json
 {
   "permissions": {
-    "deny": [
-      "mcp__claude_ai_Gmail__send_message",
-      "mcp__claude_ai_Gmail__reply",
-      "mcp__claude_ai_Gmail__forward"
+    "ask": [
+      "mcp__*__send*",
+      "mcp__*__reply*",
+      "mcp__*__forward*"
     ]
   }
 }
 ```
 
-Check the names against `/mcp` before relying on this: a deny rule with a wrong name silently blocks nothing.
+- `ask` and `deny` rules accept wildcards in the tool name, and are checked before `allow` rules. That means a broader allow rule can't skip the prompt. These patterns match the send, reply, and forward tools of any connector (Gmail, Microsoft 365, Resend, …), and may also prompt for other messaging tools, such as a chat app's `send_message`. That is the safe side to err on.
+- Check with `/mcp` that your mail connector's send tools match these patterns. A connector whose tool is named differently (for example `create_and_send_mail`) needs its own rule.
+- In `dontAsk` mode, matching calls are **denied** instead of prompting. Don't rely on these prompts in `bypassPermissions` mode.
+- To make one account read-only, use `deny` instead of `ask` for that server, for example `"mcp__claude_ai_Gmail__send*"`.
 
 ## Known limitations and failure modes
 
@@ -94,6 +112,8 @@ Check the names against `/mcp` before relying on this: a deny rule with a wrong 
 - **"Important" is a judgment.** Scoring relies on VIPs, direct requests, deadlines, and history. Teach it your VIPs ("add @acme.com as VIP") to make it more accurate.
 - **Outlook threading.** Replies sometimes land in a separate conversation; the follow-up tracker also searches Sent by subject, but it can still produce false "unanswered" alerts.
 - **Volume.** Each run processes up to about 200 messages per window and says how many it skipped; very large backlogs need several passes.
+- **Sending is permanent.** Recalling a sent message isn't possible through these connectors. The preview is your last chance to check.
+- **Draft support varies.** If a connector has no draft tool, the draft only exists in the chat preview. If it can't send an existing draft, the agent sends identical content and then deletes the draft.
 - **Model.** Defaults to `sonnet` to keep cost and speed reasonable over large amounts of mail. For harder phishing analysis, change `model:` in the agent file to `opus` (or `inherit`).
 
 ## Rollback
@@ -104,8 +124,9 @@ Check the names against `/mcp` before relying on this: a deny rule with a wrong 
 
 ## Testing
 
-See [`evals/prompts.md`](evals/prompts.md) for cases that should and should not route to this agent, and for safety cases (prompt injection, send requests, permanent delete).
+See [`evals/prompts.md`](evals/prompts.md) for cases that should and should not route to this agent, and for safety cases (prompt injection, send approval, permanent delete).
 
 ## Changelog
 
+- **0.2.0** — Adds `email-composer`: draft, reply, forward, and send on request after the final version is approved. Adds a confirmation protocol for subagent runs and recommends `ask` permission rules for send tools.
 - **0.1.0** — First release: briefing, triage, follow-ups, phishing detection, confirmed cleanup, cross-provider discovery.

@@ -10,7 +10,7 @@
     {
       "name": "email-orchestrator",
       "source": "./plugins/email-orchestrator",
-      "description": "Cross-provider email assistant: briefings, auto-categorization, unanswered-email alerts, phishing detection, and confirmed inbox cleanup across Gmail, Outlook, and other connected mail services."
+      "description": "Cross-provider email assistant: briefings, auto-categorization, unanswered-email alerts, phishing detection, confirmed inbox cleanup, and approval-gated drafting and sending across Gmail, Outlook, and other connected mail services."
     }
   ]
 }

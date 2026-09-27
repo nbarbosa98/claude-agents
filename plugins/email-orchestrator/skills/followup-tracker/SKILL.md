@@ -42,7 +42,7 @@ Sort by score, then by age:
 
 Then offer:
 
-- To write **reply drafts** for the items the user picks. Drafts only — never send. Use the provider's draft tool; if it has none, write the draft text in the chat.
+- To write **reply drafts** for the items the user picks, using email-composer. Only draft — send only if the user then asks to send and approves the final version.
 - To label them `EO/Action` (this needs confirmation, per inbox-cleanup).
 
 A false "unanswered" alert costs little. Missing an important one costs a lot. If the user's Sent mail cannot be read on a provider, say so and flag borderline threads rather than hiding them.

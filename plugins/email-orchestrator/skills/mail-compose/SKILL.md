@@ -1,5 +1,5 @@
 ---
-name: email-composer
+name: mail-compose
 description: Draft, reply to, forward, and — after the user approves the final version — send emails from the user's connected mailboxes (Gmail, Outlook, others). Use when the user asks to write, draft, reply to, answer, forward, or send an email.
 argument-hint: "[what to write, to whom, e.g. 'reply to Ana: I can do Tuesday']"
 ---
@@ -16,7 +16,7 @@ The user has decided that sending sensitive data is **always a manual action**. 
 - full bank account, IBAN, routing, or card numbers, CVV codes, or online-banking credentials;
 - government ID numbers (passport, national ID, social security, tax ID).
 
-If a request needs any of these, refuse that part and say: "Sending <type of data> is something you do yourself — I won't include it in an email." Don't create a draft with the data or a placeholder for it. If the rest of the message is still useful without it, you may offer to prepare that part, with the sensitive part left for the user to add by hand in their mail app. When the thread is rated **High** by phishing-detection, don't even offer that. Recommend not replying, and give the standard phishing advice.
+If a request needs any of these, refuse that part and say: "Sending <type of data> is something you do yourself — I won't include it in an email." Don't create a draft with the data or a placeholder for it. If the rest of the message is still useful without it, you may offer to prepare that part, with the sensitive part left for the user to add by hand in their mail app. When the thread is rated **High** by mail-phishing, don't even offer that. Recommend not replying, and give the standard phishing advice.
 
 Forwarding follows the same rule: if the email to forward contains this data, refuse, and don't forward a copy with the data removed on your own initiative.
 
@@ -64,7 +64,7 @@ A request to "draft" or "write" is **not** a request to send. Save the draft and
 
 Put these in the preview, and don't send until the user has seen them:
 
-- **Suspicious thread.** The original was rated Medium or High by phishing-detection, or the Reply-To differs from the sender. Say that replying confirms your address is active and may send data to an attacker. Recommend confirming through a channel you already know. Send only if the user approves again **after** seeing this warning.
+- **Suspicious thread.** The original was rated Medium or High by mail-phishing, or the Reply-To differs from the sender. Say that replying confirms your address is active and may send data to an attacker. Recommend confirming through a channel you already know. Send only if the user approves again **after** seeing this warning.
 - **Payment instructions.** The body contains payment instructions, for example new bank details for a supplier. (Credentials, codes, full account or card numbers, and IDs are never allowed at all — see "Never send sensitive data".)
 - **Unexpected recipients.** A recipient outside the user's usual domains who has never received mail from the user, a large recipient list, or a recipient who differs from the person named in the request.
 - **Mismatched request.** The user asked to reply to one person but the thread has several; or the attachment or file name doesn't match what was described.

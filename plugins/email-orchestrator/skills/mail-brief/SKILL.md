@@ -1,5 +1,5 @@
 ---
-name: inbox-briefing
+name: mail-brief
 description: Summarize and brief the user on their latest emails across all connected mailboxes (Gmail, Outlook, others). Use when the user asks what's new in their inbox, for an email summary, a morning or daily email brief, or "catch me up on email".
 argument-hint: "[time window, e.g. 'today', 'since Friday', '48h']"
 ---

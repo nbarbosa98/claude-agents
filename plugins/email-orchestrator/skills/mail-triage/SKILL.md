@@ -1,5 +1,5 @@
 ---
-name: email-triage
+name: mail-triage
 description: Automatically categorize emails into a consistent set of categories across Gmail, Outlook, and other connected mailboxes, and (with confirmation) apply matching labels or categories. Use when the user asks to categorize, sort, label, organize, or triage their email.
 argument-hint: "[time window or 'unlabeled']"
 ---
@@ -24,7 +24,7 @@ Use this default set unless memory `preferences.md` overrides it. Every label th
 | Promotions | `EO/Promo` | Marketing, sales, offers |
 | Notifications | `EO/Notify` | Automated system or app notifications (no-reply senders, SaaS alerts) |
 | Personal | `EO/Personal` | Non-work mail from individuals |
-| Suspicious | `EO/Suspicious` | Rated Medium or High by the phishing-detection skill — this always wins over the other categories |
+| Suspicious | `EO/Suspicious` | Rated Medium or High by the mail-phishing skill — this always wins over the other categories |
 
 Rules:
 
@@ -34,7 +34,7 @@ Rules:
 
 ## Applying categories
 
-Categorizing counts as a mailbox change. Follow the confirmation rule in inbox-cleanup:
+Categorizing counts as a mailbox change. Follow the confirmation rule in mail-clean:
 
 1. Show a table: category → count → 2–3 example subjects, per provider.
 2. Ask for confirmation. The user may accept all, only some categories, or ask for changes.

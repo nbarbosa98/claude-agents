@@ -1,5 +1,5 @@
 ---
-name: followup-tracker
+name: mail-followups
 description: Find important emails the user has not replied to yet, across all connected mailboxes, and alert them in priority order. Use when the user asks what they haven't answered, what's waiting on them, overdue replies, or who they need to get back to.
 argument-hint: "[lookback window, default 14 days]"
 ---
@@ -30,7 +30,7 @@ Add up the signals and show the top reasons for each item:
 | Two-way history: the user has written to this sender before | +1 |
 | Sender has followed up / nudged ("just checking in", a second message) | +2 |
 | Sent to the user only (not to many people) | +1 |
-| Rated Suspicious by phishing-detection | Leave out and list under Security instead |
+| Rated Suspicious by mail-phishing | Leave out and list under Security instead |
 
 Show threads with a score of **3 or more**. Also count the lower-scoring ones, and offer to show them.
 
@@ -42,7 +42,7 @@ Sort by score, then by age:
 
 Then offer:
 
-- To write **reply drafts** for the items the user picks, using email-composer. Only draft — send only if the user then asks to send and approves the final version.
-- To label them `EO/Action` (this needs confirmation, per inbox-cleanup).
+- To write **reply drafts** for the items the user picks, using mail-compose. Only draft — send only if the user then asks to send and approves the final version.
+- To label them `EO/Action` (this needs confirmation, per mail-clean).
 
 A false "unanswered" alert costs little. Missing an important one costs a lot. If the user's Sent mail cannot be read on a provider, say so and flag borderline threads rather than hiding them.

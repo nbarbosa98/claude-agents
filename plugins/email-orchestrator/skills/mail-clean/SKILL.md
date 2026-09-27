@@ -1,5 +1,5 @@
 ---
-name: inbox-cleanup
+name: mail-clean
 description: Plan and, after explicit user confirmation, carry out an inbox cleanup across Gmail, Outlook, and other connected mailboxes — archiving, labeling, marking read, or moving clutter to Trash. Use when the user asks to clean up, declutter, or tidy their inbox, reach inbox zero, or bulk-archive old mail.
 argument-hint: "[scope, e.g. 'promotions older than 30 days']"
 ---

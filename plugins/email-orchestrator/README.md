@@ -132,6 +132,6 @@ See [`evals/prompts.md`](evals/prompts.md) for cases that should and should not 
 
 ## Changelog
 
-- **0.2.1** — Sensitive data (credentials, codes, full bank or card numbers, government IDs) is never included in outgoing mail and is always sent manually by you. Draft-only requests no longer offer to send. A failed send needs a fresh approval.
+- **0.2.1** — Sensitive data (credentials, codes, full bank or card numbers, government IDs) is never included in outgoing mail and is always sent manually by you. Draft-only requests no longer offer to send. A failed send needs a fresh approval. A reply that can't be attached to its thread is no longer turned into a new email.
 - **0.2.0** — Adds `email-composer`: draft, reply, forward, and send on request after the final version is approved. Adds a confirmation protocol for subagent runs and recommends `ask` permission rules for send tools.
 - **0.1.0** — First release: briefing, triage, follow-ups, phishing detection, confirmed cleanup, cross-provider discovery.

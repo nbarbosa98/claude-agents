@@ -57,7 +57,7 @@ A request to "draft" or "write" is **not** a request to send. Save the draft and
 
    Use this send prompt only when the user asked to send. For a draft-only request, end with "Draft saved — not sent." instead (see above).
 
-6. **Send** after approval. If the provider can send an existing draft, send the approved draft. Otherwise send identical content with the send, reply, or forward tool, then delete the now-redundant draft so it doesn't linger. Use the reply tool for replies so the message stays in the same thread.
+6. **Send** after approval. If the provider can send an existing draft, send the approved draft. Otherwise send identical content with the send, reply, or forward tool, then delete the now-redundant draft so it doesn't linger. Use the reply tool for replies so the message stays in the same thread. If a reply or its draft can't be attached to the original thread (for example, the provider rejects the message ID), stop and tell the user. Don't turn it into a new, unthreaded email.
 7. **Confirm and log.** Report that it was sent, with the provider's message ID, and add an entry to `actions-log.md` (time, provider, account, recipients, subject, message ID). Sending **cannot be undone** — say so if the user asks to undo a send, and don't pretend otherwise.
 
 ## Warnings

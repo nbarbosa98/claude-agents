@@ -80,7 +80,7 @@ To make the marketplace available to everyone who works in a project, commit thi
 
 | Plugin | What it does | Components | Status |
 | --- | --- | --- | --- |
-| [`email-orchestrator`](plugins/email-orchestrator) | Briefs, categorizes, tracks unanswered important emails, flags phishing, cleans up the inbox, and drafts and sends email (each after you confirm) across Gmail, Outlook, and other connected mail services | 1 subagent, 6 skills | `0.2.1` — beta |
+| [`email-orchestrator`](plugins/email-orchestrator) | Briefs, categorizes, tracks unanswered important emails, flags phishing, cleans up the inbox, and drafts and sends email (each after you confirm) across Gmail, Outlook, and other connected mail services | 1 subagent, 7 skills (`/mail`, `/mail-*`) | `0.3.0` — beta |
 
 Each plugin folder contains its own `README.md` covering usage, required tools, example prompts, and known limitations.
 

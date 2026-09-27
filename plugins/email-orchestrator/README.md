@@ -5,12 +5,13 @@ A cross-provider email assistant for Claude Code. It briefs you on new mail, cat
 | Component | Type | Job |
 | --- | --- | --- |
 | `email-orchestrator` | Subagent | Finds your providers, applies the security rules, runs the skills below, and merges the results into one report |
-| `inbox-briefing` | Skill | Ranked summary of recent mail, action items, and counts of bulk mail |
-| `email-triage` | Skill | Sorts mail into consistent `EO/*` categories; applies them only after you confirm |
-| `followup-tracker` | Skill | Important threads where the last message is to you and you haven't replied |
-| `phishing-detection` | Skill | Checks sender, domain, header, content, and attachment signals, and rates each message High, Medium, or Low |
-| `inbox-cleanup` | Skill | Proposes a cleanup plan → you confirm → carries it out → logs it so it can be undone |
-| `email-composer` | Skill | Drafts new emails, replies, and forwards; sends only when you ask and after you approve the final preview |
+| `mail-brief` | Skill | Ranked summary of recent mail, action items, and counts of bulk mail |
+| `mail-triage` | Skill | Sorts mail into consistent `EO/*` categories; applies them only after you confirm |
+| `mail-followups` | Skill | Important threads where the last message is to you and you haven't replied |
+| `mail-phishing` | Skill | Checks sender, domain, header, content, and attachment signals, and rates each message High, Medium, or Low |
+| `mail-clean` | Skill | Proposes a cleanup plan → you confirm → carries it out → logs it so it can be undone |
+| `mail-compose` | Skill | Drafts new emails, replies, and forwards; sends only when you ask and after you approve the final preview |
+| `mail` | Skill | Catch-all for one-off tasks: find, summarize, answer questions about your mail, draft/reply/forward; hands off to the skill above that fits |
 
 ## Prerequisites
 
@@ -38,16 +39,21 @@ Forward the Acme invoice to accounting@mycompany.com.
 Check my email.            # brief → phishing → follow-ups → categorization plan
 ```
 
-Or run a single skill directly:
+Or use the slash commands:
 
-```text
-/email-orchestrator:inbox-briefing today
-/email-orchestrator:followup-tracker 7 days
-/email-orchestrator:phishing-detection
-/email-orchestrator:email-triage unlabeled
-/email-orchestrator:inbox-cleanup promotions older than 30 days
-/email-orchestrator:email-composer reply to Ana: Tuesday at 3pm works
-```
+| Command | What it does | Example |
+| --- | --- | --- |
+| `/mail` | Anything else: find an email, summarize one, answer a question about your mail, draft/reply/forward | `/mail find the Acme invoice from last month` |
+| `/mail-brief` | Briefing on recent mail | `/mail-brief today` |
+| `/mail-followups` | Important emails you haven't answered | `/mail-followups 7 days` |
+| `/mail-phishing` | Security scan for phishing and scams | `/mail-phishing` |
+| `/mail-triage` | Categorize and label (after you confirm) | `/mail-triage unlabeled` |
+| `/mail-clean` | Cleanup plan → you confirm → carried out and logged | `/mail-clean promotions older than 30 days` |
+| `/mail-compose` | Draft, reply, forward, send (after you approve) | `/mail-compose reply to Ana: Tuesday at 3pm works` |
+
+The short names work as long as no other command you have installed uses the same name. Otherwise use the full form, for example `/email-orchestrator:mail-brief`.
+
+Slash commands run in your main conversation, so you can answer confirmations ("send", "apply") directly. Asking in plain words routes to the `email-orchestrator` subagent instead.
 
 ### How sending works
 
@@ -132,6 +138,7 @@ See [`evals/prompts.md`](evals/prompts.md) for cases that should and should not 
 
 ## Changelog
 
+- **0.3.0** — Commands renamed to `/mail-brief`, `/mail-triage`, `/mail-followups`, `/mail-phishing`, `/mail-clean`, and `/mail-compose`. New `/mail` catch-all for one-off tasks (find, summarize, question about your mail, draft). **Breaking:** the old command names (`/email-orchestrator:inbox-briefing`, …) no longer exist.
 - **0.2.1** — Sensitive data (credentials, codes, full bank or card numbers, government IDs) is never included in outgoing mail and is always sent manually by you. Draft-only requests no longer offer to send. A failed send needs a fresh approval. A reply that can't be attached to its thread is no longer turned into a new email.
-- **0.2.0** — Adds `email-composer`: draft, reply, forward, and send on request after the final version is approved. Adds a confirmation protocol for subagent runs and recommends `ask` permission rules for send tools.
+- **0.2.0** — Adds `mail-compose`: draft, reply, forward, and send on request after the final version is approved. Adds a confirmation protocol for subagent runs and recommends `ask` permission rules for send tools.
 - **0.1.0** — First release: briefing, triage, follow-ups, phishing detection, confirmed cleanup, cross-provider discovery.

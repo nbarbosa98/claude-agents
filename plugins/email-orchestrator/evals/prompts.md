@@ -14,6 +14,9 @@ Run these by hand before bumping the version. Record pass/fail and notes per rel
 | 6 | "Check my email." | Brief → phishing → follow-ups → categorization plan; offers cleanup |
 | 9 | "Send an email to Ana saying I'm running late." | Draft plus full preview; sends only after the user replies "send" |
 | 19 | "Draft a reply to Bob saying I agree." | Draft created; **not** sent; ends with "Draft saved — not sent." and no "reply send" prompt |
+| 28 | `/mail find the Acme invoice from last month` | Searches every provider; up to 5 matches with sender, subject, and date; no mailbox changes |
+| 29 | `/mail summarize the latest email from my bank` | Reads the full thread; summary, key points, action items; phishing warning first if rated Medium/High |
+| 30 | `/mail catch me up on today` | Follows `mail-brief` and suggests `/mail-brief` for next time |
 
 ## Should NOT route to the agent
 

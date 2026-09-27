@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "agent": "intune-rmd-scr-agent",
+  "permissions": {
+    "disableBypassPermissionsMode": "disable",
+    "deny": [
+      "Read(./config/local.json)",
+      "Bash(* -EncodedCommand *)",
+      "Bash(* -encodedcommand *)",
+      "Bash(* -enc *)",
+      "Bash(* -ec *)",
+      "Bash(curl * graph.microsoft.com*)",
+      "Bash(wget * graph.microsoft.com*)"
+    ],
+    "ask": [
+      "Bash(* tools/graph/write/*)",
+      "Edit(./contract/**)",
+      "Write(./contract/**)",
+      "Edit(./tools/lint/**)",
+      "Write(./tools/lint/**)",
+      "Edit(./evals/fixtures.json)",
+      "Write(./evals/fixtures.json)",
+      "Edit(./.claude/hooks/**)",
+      "Write(./.claude/hooks/**)",
+      "Edit(./.claude/settings.json)",
+      "Write(./.claude/settings.json)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR}/.claude/hooks/tenant-guard.py\""
+          }
+        ]
+      }
+    ]
+  }
+}

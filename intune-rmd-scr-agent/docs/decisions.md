@@ -218,7 +218,13 @@ not objected, can be revisited), `PROPOSED` (awaiting owner), `OPEN`.
     per-app work and no catalog.
 - **Recommendation:** (a). UNVERIFIED until the lab: behaviour under SYSTEM with 64-bit
   Windows PowerShell 5.1, the module's App Installer dependency, and run time.
-- **Status:** PROPOSED.
+- **Decision (owner, Phase 1):** option (b), call `winget.exe` directly.
+- **Consequences:** Pattern A runs on a path Microsoft documents as unsupported. Mitigations:
+  every winget failure maps to `NOT_DETERMINED` (detect) or `FAILED` (remediate), never to a
+  false success; currency is decided by version comparison, not winget text; the path is
+  located by `Get-WingetPath` only. Listed in `docs/limitations.md` (Phase 9) and
+  `references/failure-modes.md` FM-01/FM-02. Revisit if lab results are poor.
+- **Status:** ACCEPTED.
 
 ## ADR-017 Lab VM topology
 
@@ -233,6 +239,81 @@ not objected, can be revisited), `PROPOSED` (awaiting owner), `OPEN`.
 - **Why x64:** on Apple-silicon Macs, local hypervisors run Windows 11 on ARM64. There,
   installer selection and emulation differ from an x64 fleet.
 - **Status:** PROPOSED (backend choice pending; see chat).
+
+## ADR-018 Temp files for captured process output
+
+- **Decision:** `Invoke-ProcessWithTimeout` writes stdout/stderr capture files with
+  `[System.IO.Path]::GetTempFileName()` (under SYSTEM: `C:\Windows\Temp`). They are only
+  read, never executed, and deleted in `finally`. Anything executed goes through secure
+  staging (HR-07).
+- **Status:** ACCEPTED (carried over from the original spec's F3).
+
+## ADR-019 Catalog version source for Pattern A
+
+- **Decision:** `winget show --id <id> --exact --source winget --versions` and take the
+  highest line that is a bare version. Header lines are localised but never parse as a
+  version, so the result does not depend on the UI language.
+- **Alternatives:** parsing labelled `winget show` fields (locale-dependent);
+  `winget list` table parsing (column truncation risk); `Microsoft.WinGet.Client`
+  (rejected with ADR-016).
+- **Source:** `--versions` option, MicrosoftDocs/windows-dev-docs
+  `hub/package-manager/winget/show.md`.
+- **UNVERIFIED:** output shape under SYSTEM and in a non-English image. Phase 3.
+- **Status:** PROPOSED (the owner decides after the lab evidence).
+
+## ADR-020 Safety layers built in Phase 1
+
+1. **Permissions** (`.claude/settings.json`): `ask` on `tools/graph/write/*` and on edits to
+   `contract/`, `tools/lint/`, `evals/fixtures.json`, `.claude/hooks/`, `.claude/settings.json`;
+   `deny` on reading `config/local.json`, on encoded PowerShell commands, and on raw
+   curl/wget to Graph; `disableBypassPermissionsMode: disable`, because bypass mode skips
+   `ask` prompts.
+2. **tenant-guard hook** (all Bash): Graph writes only through `tools/graph/write/` with an
+   allowlisted `-TenantId`; fails closed without a valid `config/local.json`.
+3. **readonly-guard hook** (subagent-scoped, ops-agent and classifier): Bash limited to
+   single commands running their own read-only tool scripts.
+4. **Tool budgets**: generators have no Bash, no network and no Agent tool; the reviewer is
+   Read/Grep/Glob only.
+5. **Plan-hash approval and in-tool tenant check** (`tid` claim): Phase 5.
+- **Limit (fact):** "a deny or ask rule covers the invocation Claude usually produces and
+  isn't a security boundary" (https://code.claude.com/docs/en/permissions). Hooks match
+  command text the same way. That is why layer 5 re-checks the tenant inside the tool.
+- **Status:** ACCEPTED (implemented; owner review in the Phase 1 report).
+
+## ADR-021 Slash commands as skills
+
+- **Decision:** `/new-remediation`, `/deploy`, `/promote`, `/ops`, `/drift`, `/eval` are
+  skills in `.claude/skills/<name>/SKILL.md`, not `.claude/commands/`. `/triage` is renamed
+  `/ops` (ADR-003, N2).
+- **Why:** commands were merged into skills; `.claude/commands/` still works, but skills
+  support `disable-model-invocation: true`, which stops Claude from starting `/deploy` or
+  `/promote` by itself. Source: https://code.claude.com/docs/en/skills.
+- **Status:** ACCEPTED.
+
+## ADR-022 Template placeholders
+
+- **Decision:** templates use `__NAME__` placeholders instead of `[NAME]`, because
+  `[UPPER]` collides with PowerShell type literals and attribute syntax. Gate 1 checks the
+  pattern `__[A-Z][A-Z0-9_]*__` (plus `<AppDisplayName>`).
+- **Status:** ACCEPTED.
+
+## ADR-023 Contract v1.0.0 details
+
+- 19 tokens across 5 types. Details in `contract/stdout.json` and the generated
+  `references/contract.md`.
+- `ERROR` (unhandled exception) exits 0 in detection and 1 in remediation, following the
+  fail-safe default (ADR-015).
+- `PENDING_REBOOT` is allowed for app-update, because winget can return
+  "Restart your PC to finish installation" (0x8A150109).
+- The remediation script may emit the compliant token (`UP_TO_DATE`, `COMPLIANT`,
+  `NOT_EXPOSED`) when its re-check finds nothing to do (HR-19).
+- **Status:** PROPOSED. Contract changes need owner approval.
+
+## ADR-024 Models
+
+- **Decision:** every agent uses `model: inherit` for now. Right-sizing (for example a
+  smaller model for classifier or ops-agent) waits for eval data (Phase 8).
+- **Status:** DEFAULT.
 
 ## Open
 

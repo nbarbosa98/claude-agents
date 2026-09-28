@@ -1,15 +1,28 @@
-# IntuneRem helper library - canonical source.
-#
-# Generators copy the functions a script needs VERBATIM into the script (Intune
-# scripts must be self-contained). Never edit a copied helper inside a package;
-# fix it here and regenerate.
-#
-# Target: Windows PowerShell 5.1, SYSTEM, 64-bit. ASCII only.
-# Sources for every external fact: references/sources.md.
+<#
+Package:   upd-exampleb1
+Type:      app-update
+Role:      remediate
+Contract:  1.0.0
+Generated: fixture-composer
+Summary:   Test fixture: Pattern B1 vendor MSI with secure staging and trust check
+#>
 
-# ---------------------------------------------------------------------------
-# Logging (HR-10). Log folder and prefix per ADR-012 (D3).
-# ---------------------------------------------------------------------------
+# ===== Constants (HR-04: every timeout is declared here; sum <= 540 s) =====
+$PACKAGE_ID = 'upd-exampleb1'
+$SUBJECT    = 'Example Tool'
+$DISPLAY_NAME_LIKE  = 'Example Tool*'
+$MAIN_EXE_PATHS     = @('C:\Program Files\Example Tool\tool.exe')
+$USER_EXE_RELPATHS  = @('AppData\Local\Example Tool\tool.exe')
+$VERSION_SOURCE     = 'FileVersion'
+$TARGET_VERSION     = '5.2.0.0'
+$DOWNLOAD_URL       = 'https://downloads.example.invalid/tool/5.2.0/tool-x64.msi'
+$EXPECTED_SIGNER_CN = 'Example Vendor Ltd'
+$EXPECTED_SIGNER_O  = 'Example Vendor Ltd'
+$EXPECTED_SHA256    = ''
+$TIMEOUT_DOWNLOAD   = 120
+$TIMEOUT_INSTALL    = 300
+
+# ===== Helpers (copied verbatim from references/helpers.ps1) =====
 function Initialize-Log {
     param(
         [Parameter(Mandatory = $true)][ValidatePattern('^[a-z0-9][a-z0-9-]{0,48}$')][string]$PackageId,
@@ -38,12 +51,6 @@ function Write-Log {
     try { Add-Content -LiteralPath $script:LogFile -Value $line -Encoding ASCII -ErrorAction Stop } catch { }
 }
 
-# ---------------------------------------------------------------------------
-# Status output and exit (HR-02, HR-03). The ONLY place a status line is written.
-# Write-Host matches Microsoft's Remediations samples; it is not captured by
-# assignment or pipeline, so the status line cannot be swallowed.
-# Under Pester this function is mocked to throw "ExitCalled:<code>".
-# ---------------------------------------------------------------------------
 function Exit-WithCode {
     param(
         # ValidatePattern is case-insensitive; -cmatch keeps tokens upper case.
@@ -63,11 +70,6 @@ function Exit-WithCode {
     exit $Code
 }
 
-# ---------------------------------------------------------------------------
-# Bounded process execution (HR-05, HR-14).
-# ArgumentList elements are joined with spaces by Start-Process; quote any
-# element that contains spaces before passing it.
-# ---------------------------------------------------------------------------
 function Invoke-ProcessWithTimeout {
     param(
         [Parameter(Mandatory = $true)][string]$FilePath,
@@ -113,11 +115,6 @@ function Invoke-ProcessWithTimeout {
     return $result
 }
 
-# ---------------------------------------------------------------------------
-# Versions (HR-12). Always compare [version] objects normalised to 4 parts:
-# [version]'1.2' has Build = -1 and compares LOWER than [version]'1.2.0'.
-# Returns $null when no version can be parsed (caller reports NOT_DETERMINED).
-# ---------------------------------------------------------------------------
 function ConvertTo-NormalizedVersion {
     param([AllowNull()][AllowEmptyString()][string]$VersionString)
     if ([string]::IsNullOrWhiteSpace($VersionString)) { return $null }
@@ -142,9 +139,6 @@ function Get-FileVersionSafe {
     } catch { return $null }
 }
 
-# ---------------------------------------------------------------------------
-# Install discovery (HR-09, ADR-012 D2).
-# ---------------------------------------------------------------------------
 function Get-MachineInstalls {
     # HKLM Uninstall in BOTH registry views (64-bit and WOW6432Node).
     param([Parameter(Mandatory = $true)][string]$DisplayNamePattern)
@@ -259,77 +253,6 @@ function Get-InstalledAppVersion {
     return $r
 }
 
-# ---------------------------------------------------------------------------
-# winget (Pattern A, HR-15). Running winget.exe as SYSTEM is NOT supported by
-# Microsoft (ADR-016); the owner accepted this risk. Every failure to locate or
-# run winget maps to NOT_DETERMINED (detection) or FAILED (remediation).
-# ---------------------------------------------------------------------------
-function Get-WingetPath {
-    $root = Join-Path $env:ProgramFiles 'WindowsApps'
-    $arch = 'x64'
-    if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { $arch = 'arm64' }
-    $best = $null
-    $bestVer = $null
-    foreach ($d in Get-ChildItem -LiteralPath $root -Directory -Filter ('Microsoft.DesktopAppInstaller_*_{0}__8wekyb3d8bbwe' -f $arch) -ErrorAction SilentlyContinue) {
-        $v = ConvertTo-NormalizedVersion ($d.Name.Split('_')[1])
-        if ($v -and (($null -eq $bestVer) -or ($v -gt $bestVer))) { $bestVer = $v; $best = $d.FullName }
-    }
-    if (-not $best) { return $null }
-    $exe = Join-Path $best 'winget.exe'
-    if (Test-Path -LiteralPath $exe -PathType Leaf) { return $exe }
-    return $null
-}
-
-function Invoke-Winget {
-    # Builds every winget command line so required flags can never be forgotten.
-    param(
-        [Parameter(Mandatory = $true)][string]$WingetPath,
-        [Parameter(Mandatory = $true)][ValidateSet('show-versions', 'upgrade')][string]$Operation,
-        [Parameter(Mandatory = $true)][ValidatePattern('^[A-Za-z0-9][A-Za-z0-9._+-]*$')][string]$PackageId,
-        [Parameter(Mandatory = $true)][int]$TimeoutSeconds,
-        [switch]$IncludeUnknown
-    )
-    $common = @('--id', $PackageId, '--exact', '--source', 'winget', '--accept-source-agreements', '--disable-interactivity')
-    if ($Operation -eq 'show-versions') {
-        $wgArgs = @('show') + $common + @('--versions')
-    } else {
-        $wgArgs = @('upgrade') + $common + @('--scope', 'machine', '--silent', '--accept-package-agreements')
-        if ($IncludeUnknown) { $wgArgs += '--include-unknown' }
-    }
-    Write-Log -Message ('winget {0}' -f ($wgArgs -join ' '))
-    return Invoke-ProcessWithTimeout -FilePath $WingetPath -ArgumentList $wgArgs -TimeoutSeconds $TimeoutSeconds -CaptureOutput
-}
-
-function Get-WingetCatalogVersion {
-    # Locale-independent: 'winget show --versions' prints localised headers, then
-    # one version per line. Only lines that are a bare version are considered, so
-    # header wording in any UI language is ignored (ADR-019; lab-verified in Phase 3).
-    param(
-        [Parameter(Mandatory = $true)][string]$WingetPath,
-        [Parameter(Mandatory = $true)][string]$PackageId,
-        [Parameter(Mandatory = $true)][int]$TimeoutSeconds
-    )
-    $r = Invoke-Winget -WingetPath $WingetPath -Operation 'show-versions' -PackageId $PackageId -TimeoutSeconds $TimeoutSeconds
-    if ($r.TimedOut -or $r.ExitCode -ne 0) {
-        Write-Log -Level 'WARN' -Message ('winget show failed: exit={0} timedOut={1}' -f $r.ExitCode, $r.TimedOut)
-        return $null
-    }
-    $max = $null
-    foreach ($ln in ($r.StdOut -split "`r?`n")) {
-        $t = $ln.Trim()
-        if ($t -match '^\d+(\.\d+){1,3}$') {
-            $v = ConvertTo-NormalizedVersion $t
-            if ($v -and (($null -eq $max) -or ($v -gt $max))) { $max = $v }
-        }
-    }
-    return $max
-}
-
-# ---------------------------------------------------------------------------
-# Secure staging (HR-07). Root and leaf are restricted to SYSTEM and
-# BUILTIN\Administrators, inheritance disabled, verified before use.
-# Mitigation, not elimination, of path attacks: see references/failure-modes.md.
-# ---------------------------------------------------------------------------
 function Test-TrustedAcl {
     param([Parameter(Mandatory = $true)][string]$Path)
     $item = Get-Item -LiteralPath $Path -Force
@@ -396,9 +319,6 @@ function Remove-SecureStagingDir {
     }
 }
 
-# ---------------------------------------------------------------------------
-# Downloads and installer trust (HR-08).
-# ---------------------------------------------------------------------------
 function Invoke-FileDownload {
     param(
         [Parameter(Mandatory = $true)][ValidatePattern('^https://')][string]$Uri,
@@ -451,56 +371,51 @@ function Test-InstallerTrust {
     return $r
 }
 
-function Test-ProcessRunning {
-    param([Parameter(Mandatory = $true)][string[]]$ProcessName)
-    return [bool](Get-Process -Name $ProcessName -ErrorAction SilentlyContinue)
-}
+# ===== Main =====
+$stagingDir = $null
+try {
+    Initialize-Log -PackageId $PACKAGE_ID -Role 'remediate'
+    Write-Log -Message ('Start remediate. PS {0}, 64-bit process: {1}' -f $PSVersionTable.PSVersion, [Environment]::Is64BitProcess)
 
-# ---------------------------------------------------------------------------
-# Desired state (config-change, vuln mitigations, general). Registry and Service
-# kinds only in v1; other kinds need a contract and reference change.
-# ---------------------------------------------------------------------------
-function Test-DesiredStateEntry {
-    param([Parameter(Mandatory = $true)][hashtable]$Entry)
-    switch ($Entry.Kind) {
-        'Registry' {
-            $cur = Get-ItemProperty -LiteralPath $Entry.Path -Name $Entry.Name -ErrorAction SilentlyContinue
-            if ($null -eq $cur) { return $false }
-            return ([string]$cur.($Entry.Name) -eq [string]$Entry.Value)
-        }
-        'Service' {
-            $svc = Get-Service -Name $Entry.Name -ErrorAction SilentlyContinue
-            if ($null -eq $svc) { return [bool]$Entry.AbsentIsCompliant }
-            $start = (Get-ItemProperty -LiteralPath ('HKLM:\SYSTEM\CurrentControlSet\Services\' + $Entry.Name) -Name Start -ErrorAction SilentlyContinue).Start
-            $map = @{ 'Boot' = 0; 'System' = 1; 'Automatic' = 2; 'Manual' = 3; 'Disabled' = 4 }
-            return ($start -eq $map[$Entry.StartType])
-        }
-        default { throw ('unsupported desired-state kind: ' + $Entry.Kind) }
+    # HR-19: re-check state first; exit with the compliant token if nothing to do.
+    $app = Get-InstalledAppVersion -DisplayNamePattern $DISPLAY_NAME_LIKE -MainExePaths $MAIN_EXE_PATHS -UserExeRelPaths $USER_EXE_RELPATHS -VersionSource $VERSION_SOURCE
+    if ($app.Status -eq 'UserOnly') {
+        Exit-WithCode -Token 'SKIPPED_USER_SCOPE' -Message ('{0} found in user scope only. Skipped' -f $SUBJECT) -Code 0
     }
+    if ($app.Status -eq 'Absent') {
+        Exit-WithCode -Token 'NOT_INSTALLED' -Message ('{0} not found' -f $SUBJECT) -Code 0
+    }
+    $target = ConvertTo-NormalizedVersion $TARGET_VERSION
+    if ($app.Status -eq 'Machine' -and $app.Version -ge $target) {
+        Exit-WithCode -Token 'UP_TO_DATE' -Message ('{0} {1} is up to date' -f $SUBJECT, $app.Version) -Code 0
+    }
+    $stagingDir = New-SecureStagingDir -PackageId $PACKAGE_ID
+    $msi = Join-Path $stagingDir 'installer.msi'
+    Invoke-FileDownload -Uri $DOWNLOAD_URL -OutFile (Join-Path $stagingDir 'installer.msi') -TimeoutSeconds $TIMEOUT_DOWNLOAD
+    $trust = Test-InstallerTrust -Path $msi -ExpectedSignerCN $EXPECTED_SIGNER_CN -ExpectedSignerO $EXPECTED_SIGNER_O -ExpectedSha256 $EXPECTED_SHA256
+    if (-not $trust.Trusted) {
+        Exit-WithCode -Token 'FAILED' -Message ('{0} update to {1} failed: {2}' -f $SUBJECT, $target, $trust.Reason) -Code 1
+    }
+    $msiexec = Join-Path $env:SystemRoot 'System32\msiexec.exe'
+    $msiLog = Join-Path $stagingDir 'msi.log'
+    $r = Invoke-ProcessWithTimeout -FilePath $msiexec -ArgumentList @('/i', ('"{0}"' -f $msi), '/qn', '/norestart', '/l*v', ('"{0}"' -f $msiLog)) -TimeoutSeconds $TIMEOUT_INSTALL
+    Write-Log -Message ('msiexec exit={0} timedOut={1}' -f $r.ExitCode, $r.TimedOut)
+    $after = Get-InstalledAppVersion -DisplayNamePattern $DISPLAY_NAME_LIKE -MainExePaths $MAIN_EXE_PATHS -UserExeRelPaths $USER_EXE_RELPATHS -VersionSource $VERSION_SOURCE
+    if ($after.Status -eq 'Machine' -and $after.Version -ge $target) {
+        Exit-WithCode -Token 'REMEDIATED' -Message ('{0} updated to {1}' -f $SUBJECT, $after.Version) -Code 0
+    }
+    if ($r.ExitCode -eq 3010) {
+        Exit-WithCode -Token 'PENDING_REBOOT' -Message ('{0} change applied. Waiting for reboot' -f $SUBJECT) -Code 0
+    }
+    Exit-WithCode -Token 'FAILED' -Message ('{0} update to {1} failed: msiexec exit {2}' -f $SUBJECT, $target, $r.ExitCode) -Code 1
 }
-
-function Set-DesiredStateEntry {
-    # Logs the prior value first (rollback data), then applies.
-    param([Parameter(Mandatory = $true)][hashtable]$Entry)
-    switch ($Entry.Kind) {
-        'Registry' {
-            $prior = Get-ItemProperty -LiteralPath $Entry.Path -Name $Entry.Name -ErrorAction SilentlyContinue
-            $pv = '<absent>'
-            if ($null -ne $prior) { $pv = [string]$prior.($Entry.Name) }
-            Write-Log -Message ('ROLLBACK Registry {0}\{1} prior={2}' -f $Entry.Path, $Entry.Name, $pv)
-            if (-not (Test-Path -LiteralPath $Entry.Path)) { $null = New-Item -Path $Entry.Path -Force }
-            $null = New-ItemProperty -LiteralPath $Entry.Path -Name $Entry.Name -PropertyType $Entry.Type -Value $Entry.Value -Force
-        }
-        'Service' {
-            $svc = Get-Service -Name $Entry.Name -ErrorAction SilentlyContinue
-            if ($null -eq $svc) { return }
-            $prior = (Get-ItemProperty -LiteralPath ('HKLM:\SYSTEM\CurrentControlSet\Services\' + $Entry.Name) -Name Start -ErrorAction SilentlyContinue).Start
-            Write-Log -Message ('ROLLBACK Service {0} priorStart={1}' -f $Entry.Name, $prior)
-            Set-Service -Name $Entry.Name -StartupType $Entry.StartType
-            if ($Entry.StartType -eq 'Disabled' -and $svc.Status -eq 'Running' -and $Entry.StopIfRunning) {
-                Stop-Service -Name $Entry.Name -Force -ErrorAction Stop
-            }
-        }
-        default { throw ('unsupported desired-state kind: ' + $Entry.Kind) }
-    }
+catch {
+    if ($_.Exception.Message -like 'ExitCalled:*') { throw }
+    $reason = (($_.Exception.Message -replace '[\r\n]+', ' ') -replace '[^\x20-\x7E]', '?')
+    Write-Log -Level 'ERROR' -Message ('Unhandled: ' + $reason)
+    Write-Host ('ERROR | {0} script error: {1}' -f $SUBJECT, $reason)
+    exit 1
+}
+finally {
+    Remove-SecureStagingDir -Path $stagingDir
 }

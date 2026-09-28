@@ -1,15 +1,26 @@
-# IntuneRem helper library - canonical source.
-#
-# Generators copy the functions a script needs VERBATIM into the script (Intune
-# scripts must be self-contained). Never edit a copied helper inside a package;
-# fix it here and regenerate.
-#
-# Target: Windows PowerShell 5.1, SYSTEM, 64-bit. ASCII only.
-# Sources for every external fact: references/sources.md.
+<#
+Package:   upd-example
+Type:      app-update
+Role:      detect
+Contract:  1.0.0
+Generated: fixture-composer
+Summary:   Test fixture: Pattern A (winget) update of a fictional app
+#>
 
-# ---------------------------------------------------------------------------
-# Logging (HR-10). Log folder and prefix per ADR-012 (D3).
-# ---------------------------------------------------------------------------
+# ===== Constants (HR-04: every timeout is declared here; sum <= 540 s) =====
+$PACKAGE_ID = 'upd-example'
+$SUBJECT    = 'Example App'
+$DISPLAY_NAME_LIKE = 'Example App*'
+$MAIN_EXE_PATHS    = @('C:\Program Files\Example App\example.exe')
+$USER_EXE_RELPATHS = @('AppData\Local\Programs\Example App\example.exe')
+$VERSION_SOURCE    = 'FileVersion'
+$WINGET_ID         = 'Example.App'
+$INCLUDE_UNKNOWN   = $false
+$WINGET_REBOOT_TO_FINISH = -1978334967
+$TIMEOUT_CATALOG   = 60
+$TIMEOUT_UPGRADE   = 300
+
+# ===== Helpers (copied verbatim from references/helpers.ps1) =====
 function Initialize-Log {
     param(
         [Parameter(Mandatory = $true)][ValidatePattern('^[a-z0-9][a-z0-9-]{0,48}$')][string]$PackageId,
@@ -38,12 +49,6 @@ function Write-Log {
     try { Add-Content -LiteralPath $script:LogFile -Value $line -Encoding ASCII -ErrorAction Stop } catch { }
 }
 
-# ---------------------------------------------------------------------------
-# Status output and exit (HR-02, HR-03). The ONLY place a status line is written.
-# Write-Host matches Microsoft's Remediations samples; it is not captured by
-# assignment or pipeline, so the status line cannot be swallowed.
-# Under Pester this function is mocked to throw "ExitCalled:<code>".
-# ---------------------------------------------------------------------------
 function Exit-WithCode {
     param(
         # ValidatePattern is case-insensitive; -cmatch keeps tokens upper case.
@@ -63,11 +68,6 @@ function Exit-WithCode {
     exit $Code
 }
 
-# ---------------------------------------------------------------------------
-# Bounded process execution (HR-05, HR-14).
-# ArgumentList elements are joined with spaces by Start-Process; quote any
-# element that contains spaces before passing it.
-# ---------------------------------------------------------------------------
 function Invoke-ProcessWithTimeout {
     param(
         [Parameter(Mandatory = $true)][string]$FilePath,
@@ -113,11 +113,6 @@ function Invoke-ProcessWithTimeout {
     return $result
 }
 
-# ---------------------------------------------------------------------------
-# Versions (HR-12). Always compare [version] objects normalised to 4 parts:
-# [version]'1.2' has Build = -1 and compares LOWER than [version]'1.2.0'.
-# Returns $null when no version can be parsed (caller reports NOT_DETERMINED).
-# ---------------------------------------------------------------------------
 function ConvertTo-NormalizedVersion {
     param([AllowNull()][AllowEmptyString()][string]$VersionString)
     if ([string]::IsNullOrWhiteSpace($VersionString)) { return $null }
@@ -142,9 +137,6 @@ function Get-FileVersionSafe {
     } catch { return $null }
 }
 
-# ---------------------------------------------------------------------------
-# Install discovery (HR-09, ADR-012 D2).
-# ---------------------------------------------------------------------------
 function Get-MachineInstalls {
     # HKLM Uninstall in BOTH registry views (64-bit and WOW6432Node).
     param([Parameter(Mandatory = $true)][string]$DisplayNamePattern)
@@ -259,11 +251,6 @@ function Get-InstalledAppVersion {
     return $r
 }
 
-# ---------------------------------------------------------------------------
-# winget (Pattern A, HR-15). Running winget.exe as SYSTEM is NOT supported by
-# Microsoft (ADR-016); the owner accepted this risk. Every failure to locate or
-# run winget maps to NOT_DETERMINED (detection) or FAILED (remediation).
-# ---------------------------------------------------------------------------
 function Get-WingetPath {
     $root = Join-Path $env:ProgramFiles 'WindowsApps'
     $arch = 'x64'
@@ -325,182 +312,40 @@ function Get-WingetCatalogVersion {
     return $max
 }
 
-# ---------------------------------------------------------------------------
-# Secure staging (HR-07). Root and leaf are restricted to SYSTEM and
-# BUILTIN\Administrators, inheritance disabled, verified before use.
-# Mitigation, not elimination, of path attacks: see references/failure-modes.md.
-# ---------------------------------------------------------------------------
-function Test-TrustedAcl {
-    param([Parameter(Mandatory = $true)][string]$Path)
-    $item = Get-Item -LiteralPath $Path -Force
-    if ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) { return 'reparse point' }
-    $acl = Get-Acl -LiteralPath $Path
-    $trusted = @('S-1-5-18', 'S-1-5-32-544')
-    $owner = (New-Object System.Security.Principal.NTAccount($acl.Owner)).Translate([System.Security.Principal.SecurityIdentifier]).Value
-    if ($trusted -notcontains $owner) { return ('untrusted owner ' + $owner) }
-    if (-not $acl.AreAccessRulesProtected) { return 'inheritance enabled' }
-    foreach ($r in $acl.Access) {
-        $sid = $r.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value
-        if ($trusted -notcontains $sid) { return ('unexpected ACE ' + $sid) }
-    }
-    return ''
-}
+# ===== Main =====
+try {
+    Initialize-Log -PackageId $PACKAGE_ID -Role 'detect'
+    Write-Log -Message ('Start detect. PS {0}, 64-bit process: {1}' -f $PSVersionTable.PSVersion, [Environment]::Is64BitProcess)
 
-function Set-TrustedAcl {
-    param([Parameter(Mandatory = $true)][string]$Path)
-    $acl = New-Object System.Security.AccessControl.DirectorySecurity
-    $acl.SetAccessRuleProtection($true, $false)
-    $inh = [System.Security.AccessControl.InheritanceFlags]'ContainerInherit, ObjectInherit'
-    $prop = [System.Security.AccessControl.PropagationFlags]::None
-    foreach ($s in @('S-1-5-18', 'S-1-5-32-544')) {
-        $sid = New-Object System.Security.Principal.SecurityIdentifier($s)
-        $acl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule($sid, 'FullControl', $inh, $prop, 'Allow')))
+    $app = Get-InstalledAppVersion -DisplayNamePattern $DISPLAY_NAME_LIKE -MainExePaths $MAIN_EXE_PATHS -UserExeRelPaths $USER_EXE_RELPATHS -VersionSource $VERSION_SOURCE
+    Write-Log -Message ('Install status {0}, version {1}' -f $app.Status, $app.Version)
+    if ($app.Status -eq 'UserOnly') {
+        Exit-WithCode -Token 'SKIPPED_USER_SCOPE' -Message ('{0} found in user scope only. Skipped' -f $SUBJECT) -Code 0
     }
-    $acl.SetOwner((New-Object System.Security.Principal.SecurityIdentifier('S-1-5-32-544')))
-    Set-Acl -LiteralPath $Path -AclObject $acl
-}
-
-function New-SecureStagingDir {
-    param([Parameter(Mandatory = $true)][ValidatePattern('^[a-z0-9][a-z0-9-]{0,48}$')][string]$PackageId)
-    $parent = Join-Path $env:ProgramData 'IntuneRemediation'
-    $root = Join-Path $parent 'Staging'
-    foreach ($d in @($parent, $root)) {
-        if (-not (Test-Path -LiteralPath $d)) {
-            $null = New-Item -ItemType Directory -Path $d -Force
-            Set-TrustedAcl -Path $d
-        }
-        $why = Test-TrustedAcl -Path $d
-        if ($why) { throw ('staging root untrusted ({0}): {1}' -f $why, $d) }
+    if ($app.Status -eq 'Absent') {
+        Exit-WithCode -Token 'NOT_INSTALLED' -Message ('{0} not found' -f $SUBJECT) -Code 0
     }
-    $leaf = Join-Path $root ('{0}_{1}' -f $PackageId, (Get-Date).ToString('yyyyMMddHHmmssfff'))
-    if (Test-Path -LiteralPath $leaf) { throw ('staging dir already exists: ' + $leaf) }
-    $null = New-Item -ItemType Directory -Path $leaf
-    Set-TrustedAcl -Path $leaf
-    $why = Test-TrustedAcl -Path $leaf
-    if ($why) { throw ('staging dir untrusted ({0}): {1}' -f $why, $leaf) }
-    Write-Log -Message ('Staging dir ready: ' + $leaf)
-    return $leaf
-}
-
-function Remove-SecureStagingDir {
-    param([AllowNull()][AllowEmptyString()][string]$Path)
-    if (-not $Path) { return }
-    $root = Join-Path $env:ProgramData 'IntuneRemediation\Staging'
-    if (-not $Path.StartsWith($root + '\', [System.StringComparison]::OrdinalIgnoreCase)) {
-        Write-Log -Level 'ERROR' -Message ('Refusing to delete outside staging root: ' + $Path)
-        return
+    if ($app.Status -eq 'Unreadable') {
+        Exit-WithCode -Token 'NOT_DETERMINED' -Message ('{0} state not determined: installed version unreadable' -f $SUBJECT) -Code 0
     }
-    if (Test-Path -LiteralPath $Path) {
-        Remove-Item -LiteralPath $Path -Recurse -Force -ErrorAction SilentlyContinue
-        if (Test-Path -LiteralPath $Path) { Write-Log -Level 'WARN' -Message ('Staging dir not fully removed: ' + $Path) }
+    $winget = Get-WingetPath
+    if (-not $winget) {
+        Exit-WithCode -Token 'NOT_DETERMINED' -Message ('{0} state not determined: winget not found' -f $SUBJECT) -Code 0
     }
-}
-
-# ---------------------------------------------------------------------------
-# Downloads and installer trust (HR-08).
-# ---------------------------------------------------------------------------
-function Invoke-FileDownload {
-    param(
-        [Parameter(Mandatory = $true)][ValidatePattern('^https://')][string]$Uri,
-        [Parameter(Mandatory = $true)][string]$OutFile,
-        [Parameter(Mandatory = $true)][ValidateRange(1, 540)][int]$TimeoutSeconds
-    )
-    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-    $oldPp = $ProgressPreference
-    $ProgressPreference = 'SilentlyContinue'
-    try {
-        Invoke-WebRequest -Uri $Uri -OutFile $OutFile -UseBasicParsing -TimeoutSec $TimeoutSeconds -ErrorAction Stop
-    } finally { $ProgressPreference = $oldPp }
-}
-
-function Get-DnField {
-    # Extracts one RDN value (e.g. CN, O) from a distinguished name, honouring quotes.
-    param([string]$Dn, [string]$Field)
-    $m = [regex]::Match($Dn, '(?:^|,\s*)' + [regex]::Escape($Field) + '=("(?:[^"]|"")*"|[^,]*)')
-    if (-not $m.Success) { return '' }
-    $v = $m.Groups[1].Value
-    if ($v.StartsWith('"') -and $v.EndsWith('"')) { $v = $v.Substring(1, $v.Length - 2).Replace('""', '"') }
-    return $v.Trim()
-}
-
-function Test-InstallerTrust {
-    # Call IMMEDIATELY before executing the installer. Returns an object; the caller
-    # emits FAILED (exit 1) and does not install when Trusted is $false.
-    param(
-        [Parameter(Mandatory = $true)][string]$Path,
-        [Parameter(Mandatory = $true)][string]$ExpectedSignerCN,
-        [Parameter(Mandatory = $true)][string]$ExpectedSignerO,
-        [string]$ExpectedSha256 = ''
-    )
-    $r = New-Object PSObject -Property @{ Trusted = $false; Reason = '' }
-    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { $r.Reason = 'installer missing'; return $r }
-    if ($ExpectedSha256) {
-        $h = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash
-        if ($h -ne $ExpectedSha256.ToUpperInvariant()) { $r.Reason = 'SHA256 mismatch'; return $r }
+    $target = Get-WingetCatalogVersion -WingetPath $winget -PackageId $WINGET_ID -TimeoutSeconds $TIMEOUT_CATALOG
+    if ($null -eq $target) {
+        Exit-WithCode -Token 'NOT_DETERMINED' -Message ('{0} state not determined: catalog version unavailable' -f $SUBJECT) -Code 0
     }
-    $sig = Get-AuthenticodeSignature -LiteralPath $Path
-    if ([string]$sig.Status -ne 'Valid') { $r.Reason = 'signature status ' + [string]$sig.Status; return $r }
-    $subj = $sig.SignerCertificate.Subject
-    $cn = Get-DnField -Dn $subj -Field 'CN'
-    $o = Get-DnField -Dn $subj -Field 'O'
-    if ($cn -ne $ExpectedSignerCN -or $o -ne $ExpectedSignerO) {
-        $r.Reason = ('signer mismatch CN="{0}" O="{1}"' -f $cn, $o)
-        return $r
+    Write-Log -Message ('Installed {0}, catalog {1}' -f $app.Version, $target)
+    if ($app.Version -ge $target) {
+        Exit-WithCode -Token 'UP_TO_DATE' -Message ('{0} {1} is up to date' -f $SUBJECT, $app.Version) -Code 0
     }
-    $r.Trusted = $true
-    return $r
+    Exit-WithCode -Token 'OUTDATED' -Message ('{0} {1} is outdated. Target {2}' -f $SUBJECT, $app.Version, $target) -Code 1
 }
-
-function Test-ProcessRunning {
-    param([Parameter(Mandatory = $true)][string[]]$ProcessName)
-    return [bool](Get-Process -Name $ProcessName -ErrorAction SilentlyContinue)
-}
-
-# ---------------------------------------------------------------------------
-# Desired state (config-change, vuln mitigations, general). Registry and Service
-# kinds only in v1; other kinds need a contract and reference change.
-# ---------------------------------------------------------------------------
-function Test-DesiredStateEntry {
-    param([Parameter(Mandatory = $true)][hashtable]$Entry)
-    switch ($Entry.Kind) {
-        'Registry' {
-            $cur = Get-ItemProperty -LiteralPath $Entry.Path -Name $Entry.Name -ErrorAction SilentlyContinue
-            if ($null -eq $cur) { return $false }
-            return ([string]$cur.($Entry.Name) -eq [string]$Entry.Value)
-        }
-        'Service' {
-            $svc = Get-Service -Name $Entry.Name -ErrorAction SilentlyContinue
-            if ($null -eq $svc) { return [bool]$Entry.AbsentIsCompliant }
-            $start = (Get-ItemProperty -LiteralPath ('HKLM:\SYSTEM\CurrentControlSet\Services\' + $Entry.Name) -Name Start -ErrorAction SilentlyContinue).Start
-            $map = @{ 'Boot' = 0; 'System' = 1; 'Automatic' = 2; 'Manual' = 3; 'Disabled' = 4 }
-            return ($start -eq $map[$Entry.StartType])
-        }
-        default { throw ('unsupported desired-state kind: ' + $Entry.Kind) }
-    }
-}
-
-function Set-DesiredStateEntry {
-    # Logs the prior value first (rollback data), then applies.
-    param([Parameter(Mandatory = $true)][hashtable]$Entry)
-    switch ($Entry.Kind) {
-        'Registry' {
-            $prior = Get-ItemProperty -LiteralPath $Entry.Path -Name $Entry.Name -ErrorAction SilentlyContinue
-            $pv = '<absent>'
-            if ($null -ne $prior) { $pv = [string]$prior.($Entry.Name) }
-            Write-Log -Message ('ROLLBACK Registry {0}\{1} prior={2}' -f $Entry.Path, $Entry.Name, $pv)
-            if (-not (Test-Path -LiteralPath $Entry.Path)) { $null = New-Item -Path $Entry.Path -Force }
-            $null = New-ItemProperty -LiteralPath $Entry.Path -Name $Entry.Name -PropertyType $Entry.Type -Value $Entry.Value -Force
-        }
-        'Service' {
-            $svc = Get-Service -Name $Entry.Name -ErrorAction SilentlyContinue
-            if ($null -eq $svc) { return }
-            $prior = (Get-ItemProperty -LiteralPath ('HKLM:\SYSTEM\CurrentControlSet\Services\' + $Entry.Name) -Name Start -ErrorAction SilentlyContinue).Start
-            Write-Log -Message ('ROLLBACK Service {0} priorStart={1}' -f $Entry.Name, $prior)
-            Set-Service -Name $Entry.Name -StartupType $Entry.StartType
-            if ($Entry.StartType -eq 'Disabled' -and $svc.Status -eq 'Running' -and $Entry.StopIfRunning) {
-                Stop-Service -Name $Entry.Name -Force -ErrorAction Stop
-            }
-        }
-        default { throw ('unsupported desired-state kind: ' + $Entry.Kind) }
-    }
+catch {
+    if ($_.Exception.Message -like 'ExitCalled:*') { throw }
+    $reason = (($_.Exception.Message -replace '[\r\n]+', ' ') -replace '[^\x20-\x7E]', '?')
+    Write-Log -Level 'ERROR' -Message ('Unhandled: ' + $reason)
+    Write-Host ('ERROR | {0} script error: {1}' -f $SUBJECT, $reason)
+    exit 0
 }

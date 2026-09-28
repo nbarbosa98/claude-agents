@@ -93,6 +93,8 @@ Banned: ternary `? :`, `??`, `??=`, `?.`, `?[]`, pipeline chains `&&` / `||`,
 - Trust order for the installed version: numeric file version parts of the main
   executable (`Get-FileVersionSafe`), then registry `DisplayVersion`. The decision record
   names which one matches the catalog format for this app.
+- App-type scripts get the installed version only through `Get-InstalledAppVersion`, in
+  both detection and remediation, so the two can never disagree (FM-13).
 - If the installed or target version cannot be parsed: `NOT_DETERMINED`, exit 0.
 
 ## HR-13 Never overstate

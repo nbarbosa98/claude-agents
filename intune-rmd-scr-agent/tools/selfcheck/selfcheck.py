@@ -5,7 +5,11 @@ Checks: ASCII, JSON validity, contract integrity and generated-doc sync, agent a
 frontmatter and tool budgets, reference links, PowerShell parse + 5.1 syntax of helpers
 and templates, a composed Pattern A sample, and the hook unit tests.
 
-Usage: python3 tools/selfcheck/selfcheck.py      (exit 1 on any failure)
+Usage:
+  python3 tools/selfcheck/selfcheck.py          quick checks (about 1 minute)
+  python3 tools/selfcheck/selfcheck.py --full   also Gate 1/Gate 2 test suites, helper Pester
+                                                tests and the live winget-pkgs lookup
+Exit 1 on any failure.
 """
 import json
 import re
@@ -128,8 +132,7 @@ def main():
         check("pwsh available", False, "install PowerShell 7")
     else:
         with tempfile.TemporaryDirectory() as td:
-            sample = compose_sample(Path(td))
-            files = [str(REF / "helpers.ps1"), str(sample)]
+            files = [str(REF / "helpers.ps1")] + [str(p) for p in sorted((ROOT / "tools/tests/fixtures/packages").glob("*/*.ps1"))]
             for t in (REF / "templates").glob("*.ps1"):
                 filled = Path(td) / t.name
                 filled.write_text(re.sub(r"__[A-Z][A-Z0-9_]*__", "x", t.read_text(encoding="ascii")), encoding="ascii")
@@ -140,9 +143,28 @@ def main():
                                    capture_output=True, text=True)
                 check("PowerShell parse + 5.1 syntax: " + Path(f).name, r.returncode == 0, (r.stdout.strip() + r.stderr.strip())[:500])
 
-    # 7. Hook tests
-    r = subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", str(ROOT / "tools/tests")], capture_output=True, text=True)
-    check("hook unit tests", r.returncode == 0, r.stderr.strip().splitlines()[-1] if r.stderr.strip() else "")
+    # 7. Fixtures composed from the current templates and helpers
+    r = subprocess.run([sys.executable, str(ROOT / "tools/tests/fixtures/build_fixtures.py"), "--check"], capture_output=True, text=True)
+    check("test fixtures in sync with templates and helpers", r.returncode == 0, r.stderr.strip())
+
+    # 8. Python test suites (hooks and offline classifier tests always; the rest with --full)
+    suites = ["tools.tests.test_hooks", "tools.tests.test_classify.ManifestParsing",
+              "tools.tests.test_classify.VendorProbe", "tools.tests.test_classify.DecisionRecord"]
+    if "--full" in sys.argv:
+        suites += ["tools.tests.test_lint", "tools.tests.test_gate2", "tools.tests.test_classify.LiveLookup"]
+    for s in suites:
+        r = subprocess.run([sys.executable, "-m", "unittest", s], capture_output=True, text=True, cwd=str(ROOT))
+        tail = r.stderr.strip().splitlines()
+        check("unittest " + s, r.returncode == 0, " | ".join(tail[-3:]) if tail else "")
+
+    # 9. Helper Pester tests (--full)
+    if "--full" in sys.argv and pwsh:
+        cmd = ("Import-Module Pester -MinimumVersion 5.0 -MaximumVersion 5.99; $c = New-PesterConfiguration; "
+               "$c.Run.Path = 'tools/pester/helpers'; $c.Run.PassThru = $true; $c.Output.Verbosity = 'None'; "
+               "$r = Invoke-Pester -Configuration $c; '{0} {1} {2}' -f $r.PassedCount, $r.FailedCount, $r.SkippedCount; "
+               "if ($r.FailedCount -gt 0) { exit 1 }")
+        r = subprocess.run([pwsh, "-NoProfile", "-Command", cmd], capture_output=True, text=True, cwd=str(ROOT))
+        check("helper Pester tests (passed failed skipped: %s)" % r.stdout.strip().splitlines()[-1:] , r.returncode == 0, r.stderr[-300:])
 
     width = max(len(n) for n, _, _ in results)
     fails = 0
@@ -151,23 +173,6 @@ def main():
         print("%s  %s%s" % ("PASS" if ok else "FAIL", name.ljust(width), ("  " + detail) if (detail and not ok) else ""))
     print("\n%d checks, %d failed" % (len(results), fails))
     return 1 if fails else 0
-
-
-def compose_sample(td):
-    """Compose a Pattern A detection script from the skeleton, helpers and the reference body."""
-    ref = (REF / "type-app-update.md").read_text(encoding="ascii")
-    blocks = re.findall(r"```powershell\n(.*?)```", ref, re.S)
-    consts, routine, body = blocks[0], blocks[1], blocks[2]
-    body = body.replace("    # (installed-version routine above)\n", routine)
-    consts += "$WINGET_ID = 'Example.App'\n$INCLUDE_UNKNOWN = $false\n"
-    tpl = (REF / "templates/detect.skeleton.ps1").read_text(encoding="ascii")
-    out = (tpl.replace("__TYPE_CONSTANTS__", consts)
-              .replace("__HELPERS__", (REF / "helpers.ps1").read_text(encoding="ascii"))
-              .replace("__DETECT_BODY__", body))
-    out = re.sub(r"__[A-Z][A-Z0-9_]*__", "x", out)
-    p = td / "sample-pattern-a-detect.ps1"
-    p.write_text(out, encoding="ascii")
-    return p
 
 
 if __name__ == "__main__":

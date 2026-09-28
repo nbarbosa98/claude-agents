@@ -17,15 +17,21 @@ You classify Windows app-update and vuln-remediation requests. You never generat
 
 ## Process
 
-1. Identify the app. Run the classifier tools in `tools/classify/` (winget manifest lookup,
-   vendor probe) when they exist. Otherwise read official sources with WebFetch.
+1. Identify the app. Run the classifier tools:
+   - `python3 tools/classify/winget_manifest_lookup.py <WingetId>`: presence, latest version,
+     installer types, scopes, SHA256 presence, manifest URL at a commit.
+   - `python3 tools/classify/vendor_probe.py --url <https endpoint> --version-path <path> ...`
+     for vendor discovery endpoints (Browser, B1-B3). Endpoints and paths come from official
+     vendor documentation you cite; never guess them.
+   Read other official sources with WebFetch.
 2. Choose the pattern from `references/type-app-update.md` ONLY from evidence: winget
    presence, installer types, supported scopes, vendor endpoint. For vulns, record the
    advisory, affected range, and fix kind from `references/type-vuln-remediation.md`.
 3. Record the expected Authenticode signer (CN and O) from evidence, and whether the vendor
    publishes a SHA256.
 4. Write `packages/<id>/decision-record.json` per `references/decision-record.md`. Every
-   external value carries its source URL and retrieval time.
+   external value carries its source URL and retrieval time. Check it with
+   `python3 tools/classify/validate_decision_record.py packages/<id>/decision-record.json`.
 
 ## Rules
 

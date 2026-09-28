@@ -259,7 +259,7 @@ not objected, can be revisited), `PROPOSED` (awaiting owner), `OPEN`.
 - **Source:** `--versions` option, MicrosoftDocs/windows-dev-docs
   `hub/package-manager/winget/show.md`.
 - **UNVERIFIED:** output shape under SYSTEM and in a non-English image. Phase 3.
-- **Status:** PROPOSED (the owner decides after the lab evidence).
+- **Status:** ACCEPTED (owner, after Phase 1). Lab evidence in Phase 3 can re-open it.
 
 ## ADR-020 Safety layers built in Phase 1
 
@@ -307,13 +307,86 @@ not objected, can be revisited), `PROPOSED` (awaiting owner), `OPEN`.
   "Restart your PC to finish installation" (0x8A150109).
 - The remediation script may emit the compliant token (`UP_TO_DATE`, `COMPLIANT`,
   `NOT_EXPOSED`) when its re-check finds nothing to do (HR-19).
-- **Status:** PROPOSED. Contract changes need owner approval.
+- **Status:** ACCEPTED (owner, after Phase 1). Further contract changes need owner approval.
 
 ## ADR-024 Models
 
 - **Decision:** every agent uses `model: inherit` for now. Right-sizing (for example a
   smaller model for classifier or ops-agent) waits for eval data (Phase 8).
 - **Status:** DEFAULT.
+
+## ADR-025 winget-pkgs access through a partial git clone
+
+- **Decision:** `tools/classify/winget_manifest_lookup.py` reads
+  https://github.com/microsoft/winget-pkgs through a shallow, tree-less partial clone
+  (`git clone --depth 1 --filter=tree:0 --no-checkout`) cached in `out/cache/winget-pkgs`.
+  Git fetches only the trees and blobs of the package being looked up.
+- **Why not the GitHub API (original spec):** the API is blocked for this repository in the
+  build environment; unauthenticated API use is rate-limited to 60 requests per hour; the
+  git route reads the same source with no token.
+- **Verified facts:**
+  - Manifest path layout: `manifests/<lowercase first character>/<identifier with '.' as '/'>/<version>/<identifier>.installer.yaml`.
+    Source: winget-pkgs `doc/manifest/schema/1.12.0/installer.md` (example
+    `manifests/m/Microsoft/WindowsTerminal/1.9.1942/...`). Multi-dot identifiers are nested
+    folders, observed live: `manifests/m/Microsoft/VisualStudio/2022/Community`.
+  - Field names `Installers[].Architecture`, `InstallerType`, `NestedInstallerType`, `Scope`,
+    `InstallerSha256`, `InstallerUrl`; `InstallerType`, `NestedInstallerType` and `Scope` may
+    also be set at the manifest root. Source: same file, schema 1.12.0 (latest found;
+    1.11.0 does not exist in the repo).
+- **Approximation:** latest version = highest by numeric-first ordering; non-numeric
+  versions produce a warning.
+- **Status:** PROPOSED (owner review in the Phase 2 report).
+
+## ADR-026 Gate 1 design
+
+- **Decision:** Python rule engine (`tools/lint/lint.py`) over PowerShell AST facts
+  (`tools/lint/Get-ScriptFacts.ps1`, never executes the script). Runs wherever `pwsh` and
+  Python run (macOS, Linux, Windows). PSScriptAnalyzer is merged in when installed;
+  without it the status is `PASS_PENDING_PSSA`, which is not deliverable.
+- **Budget:** the original spec summed the declared constants. Gate 1 instead sums the
+  timeout argument at each call site, plus 15 s per process-running helper (the
+  `taskkill` wait inside `Invoke-ProcessWithTimeout`), because a constant used twice waits
+  twice. Calls inside loops are flagged for the reviewer.
+- **Canonical helpers** are compared byte for byte; rules that inspect command
+  parameters skip their bodies (they can use splatting, and are reviewed at the source).
+- **Rule catalog:** `tools/lint/README.md`; each rule has a mutation test.
+- **PSScriptAnalyzer settings:** `PSUseCompatibleSyntax` (5.1) and `PSUseCompatibleCommands`
+  (profile `win-48_x64_10.0.17763.0_5.1.17763.316_x64_4.0.30319.42000_framework`);
+  `PSAvoidUsingWriteHost` excluded (Write-Host is the deliberate status channel). Source:
+  MicrosoftDocs/PowerShell-Docs-Modules `reference/docs-conceptual/PSScriptAnalyzer/Rules/`.
+  Not yet run: PowerShell Gallery is blocked in the build environment.
+- **Status:** PROPOSED.
+
+## ADR-027 Gate 2 design
+
+- **Decision:** one generic Pester 5 test file driven by per-type/pattern scenario
+  matrices (`tools/pester/matrices/`), with shared mocks. Scripts are parsed, not run as
+  files; the main block runs with side-effecting helpers mocked.
+- **Coverage:** every token a script can emit, plus `ERROR`, must have a scenario;
+  otherwise Gate 2 fails. This is the mechanical form of "cover every exit path".
+- **Cross-platform:** scenarios that need Windows cmdlet behaviour are marked
+  `WindowsOnly`, skipped elsewhere, and reported as `PASS_PENDING_WINDOWS` (not
+  deliverable); they run in the Gate 4 VM. Off Windows the harness simulates the
+  environment variables and a `C:` drive for path building only.
+- **Matrices are tests:** they are added to the `ask` list in `.claude/settings.json`, so
+  edits need the owner's approval (rule: never weaken a test).
+- **Status:** PROPOSED.
+
+## ADR-028 Defects found and fixed by the Phase 2 tests
+
+1. `return , $array` in `Get-MachineInstalls` / `Get-UserScopeInstalls`, combined with `@()`
+   at the call site, produced a one-element array even when nothing was found, so
+   "not installed" could never be detected. Fixed: helpers emit items; callers use `@()`.
+   Classification: root-cause fix.
+2. `ValidatePattern` is case-insensitive, so `Exit-WithCode` accepted lowercase tokens.
+   Fixed with `ValidateScript({ $_ -cmatch ... })`. Classification: root-cause fix
+   (defence in depth; Gate 1 already required contract literals).
+3. The installed-version routine was duplicated text in two scripts. It is now the canonical
+   helper `Get-InstalledAppVersion`, so detection and remediation cannot diverge (FM-13).
+   Classification: best practice.
+4. winget exit-code constants moved from the helper library to the package constants block,
+   so the helper section contains only functions. Classification: cosmetic.
+- **Status:** ACCEPTED (defect fixes; reported in the Phase 2 report).
 
 ## Open
 

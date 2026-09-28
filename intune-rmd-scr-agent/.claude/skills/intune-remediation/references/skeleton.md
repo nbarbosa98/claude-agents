@@ -6,8 +6,11 @@ Every script is built from `templates/detect.skeleton.ps1` or
 1. **Header comment**: package id, type, role, contract version, generator id, summary.
 2. **Constants**: `$PACKAGE_ID`, `$SUBJECT`, then the type constants. Every timeout is a
    `$TIMEOUT_*` constant in seconds (HR-04).
-3. **Helpers**: the helper functions this script calls, copied verbatim from
-   `helpers.ps1`, in the order they appear there. Only helpers that are used.
+3. **Helpers**: the helper functions this script calls, directly or through another
+   helper, copied verbatim from `helpers.ps1`, in the order they appear there. Only helpers
+   that are used. Gate 1 compares each copy byte for byte (L-HELPER-VERBATIM).
+   Constants never live in the helpers section; values a template needs (for example winget
+   exit codes) are declared in the constants block.
 4. **Main**: `try { Initialize-Log ...; <body> } catch { <rethrow ExitCalled>; ERROR line; exit }`,
    plus `finally { Remove-SecureStagingDir ... }` in remediation.
 
@@ -35,6 +38,14 @@ the pattern `__[A-Z][A-Z0-9_]*__`).
 - HR-07: remediation removes the staging dir in `finally` (`exit` inside `try` still runs
   `finally`; observed in PowerShell 7 on Linux, to be confirmed on 5.1 in the lab).
 - HR-10: `Initialize-Log` is the first statement.
+- Remediation declares `$stagingDir = $null` right before the main `try`; it is the only
+  assignment allowed after the helpers.
+
+## Helper return values
+
+Helpers that return lists emit their items one by one; callers wrap the call in `@()`.
+(`return , $array` plus `@()` at the call site produces a one-element array even when the
+list is empty; Gate 2 found this defect in Phase 2.)
 
 ## Body conventions
 

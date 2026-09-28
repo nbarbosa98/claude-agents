@@ -18,6 +18,8 @@ docs are read from their source repositories (ADR-010).
 | `Start-Process -NoNewWindow -PassThru -RedirectStandardOutput -ArgumentList` | helpers.ps1 | MicrosoftDocs/PowerShell-Docs `reference/5.1/Microsoft.PowerShell.Management/Start-Process.md` |
 | HKLM `...\CurrentVersion\Uninstall` holds `DisplayVersion` | helpers.ps1 `Get-MachineInstalls` | MicrosoftDocs/win32 `desktop-src/Msi/uninstall-registry-key.md` (branch docs) |
 | `RegistryView.Registry32` / `Registry64` | helpers.ps1 `Get-MachineInstalls` | dotnet/dotnet-api-docs `xml/Microsoft.Win32/RegistryView.xml` |
+| winget-pkgs manifest path layout and installer field names (schema 1.12.0) | tools/classify/winget_manifest_lookup.py | microsoft/winget-pkgs `doc/manifest/schema/1.12.0/installer.md`; nested folders for multi-dot ids observed live (ADR-025) |
+| PSScriptAnalyzer rule names, `PSUseCompatibleSyntax` / `PSUseCompatibleCommands` settings and the 5.1 profile name | tools/lint/PSScriptAnalyzerSettings.psd1 | MicrosoftDocs/PowerShell-Docs-Modules `reference/docs-conceptual/PSScriptAnalyzer/Rules/*.md` |
 
 ## UNVERIFIED (design assumptions to confirm in the lab)
 

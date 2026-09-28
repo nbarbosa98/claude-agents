@@ -18,6 +18,8 @@
       "Write(./contract/**)",
       "Edit(./tools/lint/**)",
       "Write(./tools/lint/**)",
+      "Edit(./tools/pester/matrices/**)",
+      "Write(./tools/pester/matrices/**)",
       "Edit(./evals/fixtures.json)",
       "Write(./evals/fixtures.json)",
       "Edit(./.claude/hooks/**)",

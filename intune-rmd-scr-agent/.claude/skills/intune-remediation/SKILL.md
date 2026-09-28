@@ -26,6 +26,9 @@ Always also read:
 - [references/hard-rules.md](references/hard-rules.md): rules HR-01 to HR-21. Every generated script must satisfy all that apply.
 - [references/skeleton.md](references/skeleton.md): the mandatory section order and the two skeleton templates in `references/templates/`.
 - [references/helpers.ps1](references/helpers.ps1): canonical helper functions. Copy the ones a script uses verbatim.
+- Worked examples that pass Gates 1 and 2: `tools/tests/fixtures/src/<id>/` (constants and
+  bodies) and `tools/tests/fixtures/packages/<id>/` (composed): `upd-example` (Pattern A),
+  `upd-exampleb1` (B1), `cfg-example` (config-change), `aud-example` (audit).
 
 On demand:
 

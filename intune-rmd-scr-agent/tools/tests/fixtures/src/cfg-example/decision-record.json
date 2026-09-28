@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "1.0.0",
+  "packageId": "cfg-example",
+  "type": "config-change",
+  "pattern": null,
+  "subject": "Example App hardening",
+  "request": "TEST FIXTURE - fictional settings used to test Gates 1 and 2",
+  "confidence": "high",
+  "openQuestions": [],
+  "evidence": [
+    { "field": "settingsCatalogAvailable", "value": false, "source": "fixture", "retrievedAt": "2026-09-28T00:00:00Z" }
+  ],
+  "desiredState": [
+    { "Kind": "Registry", "Path": "HKLM:\\SOFTWARE\\ExampleVendor\\ExampleApp", "Name": "TelemetryLevel", "Type": "DWord", "Value": 0 },
+    { "Kind": "Service", "Name": "ExampleSvc", "StartType": "Disabled" }
+  ],
+  "ownerApprovals": []
+}

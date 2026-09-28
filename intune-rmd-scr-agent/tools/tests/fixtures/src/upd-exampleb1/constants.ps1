@@ -1,0 +1,11 @@
+$DISPLAY_NAME_LIKE  = 'Example Tool*'
+$MAIN_EXE_PATHS     = @('C:\Program Files\Example Tool\tool.exe')
+$USER_EXE_RELPATHS  = @('AppData\Local\Example Tool\tool.exe')
+$VERSION_SOURCE     = 'FileVersion'
+$TARGET_VERSION     = '5.2.0.0'
+$DOWNLOAD_URL       = 'https://downloads.example.invalid/tool/5.2.0/tool-x64.msi'
+$EXPECTED_SIGNER_CN = 'Example Vendor Ltd'
+$EXPECTED_SIGNER_O  = 'Example Vendor Ltd'
+$EXPECTED_SHA256    = ''
+$TIMEOUT_DOWNLOAD   = 120
+$TIMEOUT_INSTALL    = 300

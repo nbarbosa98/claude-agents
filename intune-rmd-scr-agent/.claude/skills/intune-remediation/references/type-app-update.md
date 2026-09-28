@@ -26,87 +26,59 @@ $VERSION_SOURCE      = '__VERSION_SOURCE__'       # 'FileVersion' or 'DisplayVer
 $TIMEOUT_CATALOG     = 60                         # seconds
 ```
 
-Pattern A adds `$WINGET_ID`, `$INCLUDE_UNKNOWN` (`$true`/`$false`, same value in both
-scripts), `$TIMEOUT_UPGRADE`. Download patterns add `$DOWNLOAD_URL` (or a discovery URL),
-`$EXPECTED_SIGNER_CN`, `$EXPECTED_SIGNER_O`, `$EXPECTED_SHA256` (empty when the vendor
-publishes none), `$TIMEOUT_DOWNLOAD`, `$TIMEOUT_INSTALL`.
+Pattern A adds `$WINGET_ID`, `$INCLUDE_UNKNOWN` (`$true`/`$false`, same literal in both
+scripts), `$TIMEOUT_UPGRADE`, and in remediation the winget exit code it checks:
+`$WINGET_REBOOT_TO_FINISH = -1978334967` (0x8A150109, "Restart your PC to finish
+installation"; microsoft/winget-cli returnCodes.md). Download patterns add `$TARGET_VERSION`
+or a discovery source, `$DOWNLOAD_URL`, `$EXPECTED_SIGNER_CN`, `$EXPECTED_SIGNER_O`,
+`$EXPECTED_SHA256` (empty when the vendor publishes none), `$TIMEOUT_DOWNLOAD`,
+`$TIMEOUT_INSTALL`.
 
-## Installed-version routine (all patterns)
+## Worked examples (read these first)
 
-```powershell
-    $machine = Get-MachineInstalls -DisplayNamePattern $DISPLAY_NAME_LIKE
-    $installed = $null
-    if ($VERSION_SOURCE -eq 'FileVersion') {
-        foreach ($p in $MAIN_EXE_PATHS) {
-            $v = Get-FileVersionSafe -Path $p
-            if ($v -and (($null -eq $installed) -or ($v -gt $installed))) { $installed = $v }
-        }
-    }
-    if ($null -eq $installed) {
-        foreach ($m in $machine) {
-            $v = ConvertTo-NormalizedVersion $m.DisplayVersion
-            if ($v -and (($null -eq $installed) -or ($v -gt $installed))) { $installed = $v }
-        }
-    }
-    if ($machine.Count -eq 0 -and $null -eq $installed) {
-        $user = Get-UserScopeInstalls -DisplayNamePattern $DISPLAY_NAME_LIKE -RelativeExePaths $USER_EXE_RELPATHS
-        if ($user.Count -gt 0) {
-            Write-Log -Message ('User-scope installs only: {0}' -f $user.Count)
-            Exit-WithCode -Token 'SKIPPED_USER_SCOPE' -Message ('{0} found in user scope only. Skipped' -f $SUBJECT) -Code 0
-        }
-        Exit-WithCode -Token 'NOT_INSTALLED' -Message ('{0} not found' -f $SUBJECT) -Code 0
-    }
-    if ($null -eq $installed) {
-        Exit-WithCode -Token 'NOT_DETERMINED' -Message ('{0} state not determined: installed version unreadable' -f $SUBJECT) -Code 0
-    }
-```
+Complete, gate-tested bodies live in the Gate 1/2 test fixtures:
 
-With `$INCLUDE_UNKNOWN = $true` (Pattern A only), an installed-but-unreadable version is
-treated as outdated instead of `NOT_DETERMINED`, and remediation passes `-IncludeUnknown`.
+| Pattern | Source (constants + bodies) | Composed scripts |
+|---|---|---|
+| A | `tools/tests/fixtures/src/upd-example/` | `tools/tests/fixtures/packages/upd-example/` |
+| B1 | `tools/tests/fixtures/src/upd-exampleb1/` | `tools/tests/fixtures/packages/upd-exampleb1/` |
 
-## Pattern A detection body
+They pass Gate 1 and the Gate 2 matrices in `tools/pester/matrices/app-update-A.ps1` and
+`app-update-B1.ps1`. Follow their structure; adapt only what the decision record changes.
+
+## Installed version (all patterns)
+
+Always call the shared helper, in detection and in remediation (HR-12, FM-13):
 
 ```powershell
-    # (installed-version routine above)
-    $winget = Get-WingetPath
-    if (-not $winget) {
-        Exit-WithCode -Token 'NOT_DETERMINED' -Message ('{0} state not determined: winget not found' -f $SUBJECT) -Code 0
-    }
-    $target = Get-WingetCatalogVersion -WingetPath $winget -PackageId $WINGET_ID -TimeoutSeconds $TIMEOUT_CATALOG
-    if ($null -eq $target) {
-        Exit-WithCode -Token 'NOT_DETERMINED' -Message ('{0} state not determined: catalog version unavailable' -f $SUBJECT) -Code 0
-    }
-    Write-Log -Message ('Installed {0}, catalog {1}' -f $installed, $target)
-    if ($installed -ge $target) {
-        Exit-WithCode -Token 'UP_TO_DATE' -Message ('{0} {1} is up to date' -f $SUBJECT, $installed) -Code 0
-    }
-    Exit-WithCode -Token 'OUTDATED' -Message ('{0} {1} is outdated. Target {2}' -f $SUBJECT, $installed, $target) -Code 1
+    $app = Get-InstalledAppVersion -DisplayNamePattern $DISPLAY_NAME_LIKE -MainExePaths $MAIN_EXE_PATHS -UserExeRelPaths $USER_EXE_RELPATHS -VersionSource $VERSION_SOURCE
 ```
 
-## Pattern A remediation body
+`$app.Status` is `Machine`, `UserOnly`, `Absent` or `Unreadable`; `$app.Version` is a
+normalised `[version]` or `$null`. Map them as follows:
 
-```powershell
-    # (installed-version routine above; HR-19 re-check)
-    $winget = Get-WingetPath
-    if (-not $winget) {
-        Exit-WithCode -Token 'FAILED' -Message ('{0} update to catalog failed: winget not found' -f $SUBJECT) -Code 1
-    }
-    $target = Get-WingetCatalogVersion -WingetPath $winget -PackageId $WINGET_ID -TimeoutSeconds $TIMEOUT_CATALOG
-    if ($target -and $installed -ge $target) {
-        Exit-WithCode -Token 'UP_TO_DATE' -Message ('{0} {1} is up to date' -f $SUBJECT, $installed) -Code 0
-    }
-    $r = Invoke-Winget -WingetPath $winget -Operation 'upgrade' -PackageId $WINGET_ID -TimeoutSeconds $TIMEOUT_UPGRADE -IncludeUnknown:$INCLUDE_UNKNOWN
-    Write-Log -Message ('winget upgrade exit={0} timedOut={1}' -f $r.ExitCode, $r.TimedOut)
-    # Post-check (HR-13): re-read the installed version; never trust the exit code alone.
-    # (installed-version routine again, into $after)
-    if ($after -and $target -and $after -ge $target) {
-        Exit-WithCode -Token 'REMEDIATED' -Message ('{0} updated to {1}' -f $SUBJECT, $after) -Code 0
-    }
-    if ($r.ExitCode -eq $WINGET_REBOOT_TO_FINISH) {
-        Exit-WithCode -Token 'PENDING_REBOOT' -Message ('{0} change applied. Waiting for reboot' -f $SUBJECT) -Code 0
-    }
-    Exit-WithCode -Token 'FAILED' -Message ('{0} update to {1} failed: winget exit {2}' -f $SUBJECT, $target, $r.ExitCode) -Code 1
-```
+| Status | Detection | Remediation |
+|---|---|---|
+| `UserOnly` | `SKIPPED_USER_SCOPE`, 0 | `SKIPPED_USER_SCOPE`, 0 |
+| `Absent` | `NOT_INSTALLED`, 0 | `NOT_INSTALLED`, 0 |
+| `Unreadable` | `NOT_DETERMINED`, 0 (or treated as outdated when `$INCLUDE_UNKNOWN = $true`, Pattern A only) | continue to install; the post-check decides |
+| `Machine` | compare with the target | re-check (HR-19), then install and post-check |
+
+## Pattern A detection
+
+After the status mapping: `Get-WingetPath` (missing: `NOT_DETERMINED`, 0), then
+`Get-WingetCatalogVersion` (null: `NOT_DETERMINED`, 0), then `UP_TO_DATE` (installed >= target,
+exit 0) or `OUTDATED` (exit 1). See `upd-example/detect.body.ps1`.
+
+## Pattern A remediation
+
+After the status mapping: winget missing or catalog unavailable is `FAILED`, 1; installed
+>= target is `UP_TO_DATE`, 0 with no upgrade; otherwise
+`Invoke-Winget -Operation 'upgrade' ... -IncludeUnknown:$INCLUDE_UNKNOWN`, then call
+`Get-InstalledAppVersion` again (post-check, HR-13). Only a post-check at or above the
+target is `REMEDIATED`. `$WINGET_REBOOT_TO_FINISH` is `PENDING_REBOOT`, 0. Everything else,
+including winget exit 0 with an unchanged version, is `FAILED`, 1. See
+`upd-example/remediate.body.ps1`.
 
 ## Browser pattern
 

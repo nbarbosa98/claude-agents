@@ -18,7 +18,7 @@ A cross-provider email assistant for Claude Code. It briefs you on new mail, cat
 1. **At least one email connector** available in Claude Code — for example the Gmail connector, the Microsoft 365 connector (Outlook), or another mail MCP server. On claude.ai: **Settings → Connectors**. In the CLI: `/mcp` to check what's connected.
 2. The plugin itself:
    ```text
-   /plugin marketplace add nbarbosa98/claude-agents
+   /plugin marketplace add nbarbosa98/claude-plugins
    /plugin install email-orchestrator@claude-agents
    ```
 
@@ -138,6 +138,7 @@ See [`evals/prompts.md`](evals/prompts.md) for cases that should and should not 
 
 ## Changelog
 
+- **0.3.1** — Plugin moved to `agent/email-orchestrator/` in the renamed `nbarbosa98/claude-plugins` repository; `repository` URL and install commands updated. No behavior change.
 - **0.3.0** — Commands renamed to `/mail-brief`, `/mail-triage`, `/mail-followups`, `/mail-phishing`, `/mail-clean`, and `/mail-compose`. New `/mail` catch-all for one-off tasks (find, summarize, question about your mail, draft). **Breaking:** the old command names (`/email-orchestrator:inbox-briefing`, …) no longer exist.
 - **0.2.1** — Sensitive data (credentials, codes, full bank or card numbers, government IDs) is never included in outgoing mail and is always sent manually by you. Draft-only requests no longer offer to send. A failed send needs a fresh approval. A reply that can't be attached to its thread is no longer turned into a new email.
 - **0.2.0** — Adds `mail-compose`: draft, reply, forward, and send on request after the final version is approved. Adds a confirmation protocol for subagent runs and recommends `ask` permission rules for send tools.

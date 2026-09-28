@@ -4,12 +4,12 @@
     "name": "Nelson Barbosa"
   },
   "metadata": {
-    "description": "Curated Claude Code agents packaged as installable plugins."
+    "description": "Personal library of Claude Code agents, skills and MCP servers, packaged as installable plugins."
   },
   "plugins": [
     {
       "name": "email-orchestrator",
-      "source": "./plugins/email-orchestrator",
+      "source": "./agent/email-orchestrator",
       "description": "Cross-provider email assistant: briefings, auto-categorization, unanswered-email alerts, phishing detection, confirmed inbox cleanup, and approval-gated drafting and sending across Gmail, Outlook, and other connected mail services."
     }
   ]

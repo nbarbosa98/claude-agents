@@ -13,7 +13,8 @@ How a scenario runs:
   4. The main try/catch/finally runs, with any raw 'exit N' in the outer catch rewritten to
      throw "ExitCalled:N" so the test process is not terminated.
   Scenarios with WindowsOnly = $true are skipped off Windows and reported by Invoke-Gate2
-  as PASS_PENDING_WINDOWS; they run inside the Gate 4 VM (Phase 3).
+  as PASS_PENDING_WINDOWS; Gate 4 runs them inside the VM (GateGuest -Action Pester with
+  a matrix), which is what turns them into a pass.
   5. Assertions: exactly one Exit-WithCode with the expected token and code (or, for the
      ERROR path, the outer catch's ERROR line), plus the scenario's own Assert block.
 #>
@@ -32,11 +33,13 @@ BeforeAll {
 
 Describe 'Gate 2 package scenarios' {
     It '<Role>: <Name>' -ForEach $script:cases {
-        if ($WindowsOnly -and -not $IsWindows) {
+        # $IsWindows does not exist in Windows PowerShell 5.1 (the Gate 4 VM runs this file there).
+        $onWindows = [System.Environment]::OSVersion.Platform -eq 'Win32NT'
+        if ($WindowsOnly -and -not $onWindows) {
             Set-ItResult -Skipped -Because 'needs Windows-only cmdlet behaviour; runs in the Gate 4 VM'
             return
         }
-        if (-not $IsWindows) {
+        if (-not $onWindows) {
             # Simulate the Windows environment variables the scripts read under SYSTEM.
             foreach ($kv in @(@('SystemRoot', 'C:\Windows'), @('ProgramData', 'C:\ProgramData'), @('ProgramFiles', 'C:\Program Files'), @('SystemDrive', 'C:'))) {
                 if (-not [Environment]::GetEnvironmentVariable($kv[0])) { [Environment]::SetEnvironmentVariable($kv[0], $kv[1]) }

@@ -489,15 +489,21 @@ class Linter:
 
 
 def main(argv):
-    args = [a for a in argv[1:] if not a.startswith("--")]
-    if len(args) != 1:
+    rest = list(argv[1:])
+    out = None
+    if "--out" in rest:
+        i = rest.index("--out")
+        if i + 1 >= len(rest):
+            print(__doc__, file=sys.stderr)
+            return 3
+        out = rest[i + 1]
+        del rest[i:i + 2]
+    flags = [a for a in rest if a.startswith("--")]
+    args = [a for a in rest if not a.startswith("--")]
+    if len(args) != 1 or any(f not in ("--no-pssa",) for f in flags):
         print(__doc__, file=sys.stderr)
         return 3
-    out = None
-    if "--out" in argv:
-        out = argv[argv.index("--out") + 1]
-        args = [a for a in args if a != out]
-    res = Linter(args[0], use_pssa="--no-pssa" not in argv).run()
+    res = Linter(args[0], use_pssa="--no-pssa" not in flags).run()
     text = json.dumps(res, indent=2)
     if out:
         Path(out).write_text(text + "\n", encoding="ascii")

@@ -10,21 +10,29 @@ Remediation scripts for a Windows-only fleet, in a LAB tenant only.
 
 ## Your job
 
+You decide and delegate; `tools/pipeline/pipeline.py` does the bookkeeping that must not depend
+on judgement (composing, Gates 1/2/4, recording Gate 3, repair evidence, the repair budget,
+deliverability, metrics). Follow `/new-remediation` step by step:
+
 1. Understand the request. Route it to exactly one generator (routing table below). If two
    types fit, or none clearly does, ask the user. Never guess a type.
 2. For app-update and vuln-remediation, run `classifier` first. If its decision record has
    `confidence: low` or any `openQuestions`, stop and ask the user.
-3. Run the generator with a brief: package id, type, the decision record path, and the
-   user's request verbatim. Nothing else.
-4. Run the gates in order (Gate 1 lint, Gate 2 Pester, Gate 3 `reviewer`, Gate 4 VM).
-   Record every gate result with its artifact path in `packages/<id>/gate-results.json`.
-   A gate whose tooling is not built yet is recorded as `NOT_RUN`, never as passed.
-5. On a gate failure, send the generator ONLY the failing evidence (rule id, file, line,
-   message). Restart from Gate 1. At most 3 repair iterations; each must cite the evidence
-   it fixes. When the budget is spent, stop and report the diagnosis, ranked likely root
-   causes, and the evidence that would confirm each.
-6. Deliver the package summary: type, pattern and evidence, gate results, Intune settings
-   table, relevant failure modes, and every UNVERIFIED item.
+3. Run the generator with a brief: package id, type, the decision record path, the user's
+   request verbatim. Nothing else. It writes `src/`, `README.md` and `gate4.json`.
+4. `python3 tools/pipeline/pipeline.py start packages/<id>`, then `gates` (Gates 1 and 2).
+5. Gate 3: run `reviewer` with only the package path. Save its report verbatim to
+   `out/<id>/review-iter-<n>.txt` and record it with `pipeline.py review`.
+6. Gate 4: `pipeline.py gate4 packages/<id>` on the Mac with the lab VM, or
+   `--backend skip` when there is no VM (recorded NOT_RUN: not deliverable).
+7. On any gate failure: `pipeline.py evidence`, send the generator ONLY that evidence, get its
+   `cites`, then `pipeline.py repair --cites ...` and restart from step 4's `gates`. At most 3
+   repairs; the pipeline enforces it (exit 4). When the budget is spent, stop and report the
+   diagnosis, ranked likely root causes, and the evidence that would confirm each.
+8. `pipeline.py status`, then `pipeline.py finish --outcome delivered|stopped|budget-exhausted`
+   (this writes `out/metrics.jsonl`). Deliver the package summary: type, pattern and evidence,
+   gate results, Intune settings table, relevant failure modes, every UNVERIFIED item, and
+   whether it is deliverable.
 
 ## Routing
 
@@ -55,4 +63,5 @@ group with no pilot stage.
   `contract/`, `tools/lint/` or `evals/fixtures.json` need the user's explicit approval.
 - Never state an app is patched when only a staged update was detected.
 - Do not read `config/local.json`; the tools read it themselves.
-- Append run metrics (iterations, gate failures by rule id, wall time) to `out/metrics.jsonl`.
+- Never edit composed scripts, `gate-results.json` or gate artifacts by hand; only the pipeline writes them.
+- Never report a gate as passed unless `pipeline.py status` shows it with an artifact.

@@ -85,7 +85,10 @@ function New-FakeGateBackend {
             }
             'Run' { return & $emit @{ action = 'Run'; ok = $true; run = (& $run $Params.Role) } }
             'Collect' { return & $emit @{ action = 'Collect'; ok = $true; fileVersion = $vm.version; logs = $vm.logs; stagingLeft = $vm.staging; registryValue = $vm.reg } }
-            'Pester' { return & $emit @{ action = 'Pester'; ok = $true; passed = 7; failed = 0; skipped = 0; failures = @() } }
+            'Pester' {
+                if ($spec.matrix) { $state.gate2Matrix = $spec.matrix; return & $emit @{ action = 'Pester'; ok = $true; passed = 3; failed = [int][bool]$Faults.gate2Fails; skipped = 0; failures = @() } }
+                return & $emit @{ action = 'Pester'; ok = $true; passed = 7; failed = 0; skipped = 0; failures = @() }
+            }
             'Fetch' {
                 $b64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($state.last))
                 $len = [math]::Min([int]$Params.Length, [math]::Max(0, $b64.Length - [int]$Params.Offset))

@@ -153,7 +153,7 @@ def main():
     suites = ["tools.tests.test_hooks", "tools.tests.test_classify.ManifestParsing",
               "tools.tests.test_classify.VendorProbe", "tools.tests.test_classify.DecisionRecord"]
     if "--full" in sys.argv:
-        suites += ["tools.tests.test_lint", "tools.tests.test_gate2", "tools.tests.test_classify.LiveLookup"]
+        suites += ["tools.tests.test_lint", "tools.tests.test_gate2", "tools.tests.test_pipeline", "tools.tests.test_classify.LiveLookup"]
     for s in suites:
         r = subprocess.run([sys.executable, "-m", "unittest", s], capture_output=True, text=True, cwd=str(ROOT))
         tail = r.stderr.strip().splitlines()

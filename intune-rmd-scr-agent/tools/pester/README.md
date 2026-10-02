@@ -5,7 +5,7 @@ pwsh -NoProfile -File tools/pester/Invoke-Gate2.ps1 -PackagePath packages/<id> [
 ```
 
 - `Invoke-Gate2.ps1` picks `matrices/<type>-<pattern>.ps1` (else `matrices/<type>.ps1`),
-  appends `<package>/tests/*.scenarios.ps1` if present, checks coverage, runs
+  appends `<package>/src/tests/*.scenarios.ps1` if present, checks coverage, runs
   `Package.Tests.ps1`, and prints JSON.
 - `Package.Tests.ps1` parses the script, dot-sources its constants and helpers, mocks the
   side-effecting helpers, runs the main `try` block per scenario and asserts the single

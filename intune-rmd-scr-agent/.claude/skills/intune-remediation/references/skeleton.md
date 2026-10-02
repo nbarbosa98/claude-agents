@@ -1,5 +1,9 @@
 # Script skeleton
 
+Generators do not assemble scripts: `tools/compose/compose.py` fills the templates from
+`packages/<id>/src/` and copies the helpers (ADR-031). This page describes what the composer
+produces and what the generator's constants and bodies must fit into.
+
 Every script is built from `templates/detect.skeleton.ps1` or
 `templates/remediate.skeleton.ps1`. The section order is fixed and checked by Gate 1:
 

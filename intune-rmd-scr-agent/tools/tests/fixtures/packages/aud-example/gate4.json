@@ -1,0 +1,7 @@
+{
+  "schemaVersion": "1.0.0",
+  "packageId": "aud-example",
+  "scenarios": [
+    { "name": "finding", "setup": [], "steps": [ { "role": "detect", "expect": ["AUDIT_CLEAN"], "exit": 0 } ], "checks": ["logs-present", "within-budget", "system-64bit", "single-status-line"] }
+  ]
+}

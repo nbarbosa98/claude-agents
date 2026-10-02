@@ -1,5 +1,6 @@
 {
   "type": "audit",
   "subject": "Example App legacy plugins",
-  "summary": "Test fixture: counts legacy plugin files, changes nothing"
+  "summary": "Test fixture: counts legacy plugin files, changes nothing",
+  "generator": "fixture-composer"
 }

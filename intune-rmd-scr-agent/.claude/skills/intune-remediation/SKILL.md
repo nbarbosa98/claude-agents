@@ -66,13 +66,18 @@ On demand:
 
 ## 3. Output of a generator
 
-Write exactly these files into `packages/<package-id>/`:
+Generators write into `packages/<package-id>/`:
 
-1. `detect.ps1`
-2. `remediate.ps1` (not for audit)
-3. `README.md` with these sections, in order: `## Summary`, `## Type and pattern`,
+1. `src/meta.json`, `src/constants.ps1`, optional `src/<role>.constants.ps1`,
+   `src/detect.body.ps1`, `src/remediate.body.ps1` (not for audit). The pipeline composes
+   `detect.ps1` and `remediate.ps1` from these (`tools/compose/compose.py`, ADR-031); composed
+   scripts are never edited by hand.
+2. `README.md` with these sections, in order: `## Summary`, `## Type and pattern`,
    `## Evidence`, `## Status tokens`, `## Intune settings`, `## Time budget`,
    `## Known failure modes`, `## Rollback`, `## UNVERIFIED items`.
+3. `gate4.json`: the Gate 4 scenarios (tools/vm/README.md).
+4. Optional `src/tests/*.scenarios.ps1` only when a Gate 2 matrix asks for package-specific
+   scenarios (audit). Never edit `tools/pester/matrices/`.
 
 `packages/<package-id>/decision-record.json` is written by the classifier (app-update,
 vuln-remediation) or by the generator from the orchestrator's brief (other types). The

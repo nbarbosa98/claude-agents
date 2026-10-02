@@ -1,5 +1,6 @@
 {
   "type": "app-update",
   "subject": "Example Tool",
-  "summary": "Test fixture: Pattern B1 vendor MSI with secure staging and trust check"
+  "summary": "Test fixture: Pattern B1 vendor MSI with secure staging and trust check",
+  "generator": "fixture-composer"
 }

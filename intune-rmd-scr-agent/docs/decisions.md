@@ -441,6 +441,47 @@ not objected, can be revisited), `PROPOSED` (awaiting owner), `OPEN`.
     by turning the rules off.
 - **Status:** ACCEPTED (defect fixes and renames; reported in the Phase 3 report).
 
+## ADR-031 Generators write parts; a deterministic composer builds the scripts
+
+- **Decision:** generators write only `packages/<id>/src/` (meta, constants, bodies).
+  `tools/compose/compose.py` fills the skeleton templates and copies every needed helper
+  verbatim (including helpers used by helpers) in canonical order. Composed scripts are never
+  edited by hand; `pipeline.py status` blocks delivery if they are out of date.
+- **Why:** rule 6 (prefer deterministic code). Copying about 300 lines of helpers by hand is
+  mechanical, error-prone and expensive in tokens, and Gate 1 would only catch the errors
+  afterwards. The composer is the same one that builds the test fixtures, so every Gate 1/2
+  test also tests it.
+- **Status:** PROPOSED (Phase 4 report).
+
+## ADR-032 Pipeline driver for /new-remediation
+
+- **Decision:** `tools/pipeline/pipeline.py` owns the bookkeeping of the loop; the
+  orchestrator decides and delegates. It:
+  - composes, then runs Gate 1 and Gate 2 and stops at the first failing gate (one focused
+    set of evidence per iteration);
+  - records Gate 3 from the reviewer's report: any `[FAIL]`, a malformed report, or (for
+    `general`) any `[WARN]` fails it;
+  - runs Gate 4 or records `NOT_RUN`;
+  - extracts failing evidence as `E1..En`; a repair must cite every id, and the fourth repair
+    request returns exit 4 (budget of 3 repairs);
+  - decides deliverability: all four gates `PASS` with artifacts, composed scripts in sync;
+    `PASS_PENDING_WINDOWS` counts only when Gate 4 ran those scenarios on Windows and they
+    passed (ADR-033); `PASS_PENDING_PSSA`, `INCOMPLETE` and `NOT_RUN` never count;
+  - appends metrics to `out/metrics.jsonl` (outcome, repairs, first-iteration gate results,
+    failures by rule id, wall time) and, on delivery, copies the final gate artifacts into
+    `packages/<id>/evidence/` so they are committed with the package.
+- **Status:** PROPOSED (Phase 4 report).
+
+## ADR-033 Gate 4 runs the Gate 2 WindowsOnly scenarios
+
+- **Defect found in Phase 4:** Gate 2 scenarios marked `WindowsOnly` were documented as
+  "run in the VM", but Gate 4 only ran the helper tests, so `PASS_PENDING_WINDOWS` could never
+  be discharged. Fixed: with `-IncludeWindowsTests`, Gate 4 uploads the package's matrix and
+  runs its WindowsOnly scenarios through the same `Package.Tests.ps1` on Windows PowerShell
+  5.1, on a freshly reverted VM with its own upload (a second defect: the Windows tests reused
+  whatever the last scenario had uploaded).
+- **Status:** ACCEPTED (defect fix; reported in the Phase 4 report).
+
 ## Open
 
 - **D6:** resolved by ADR-017 (Azure, x64). Windows build and UI language are recorded from

@@ -7,7 +7,7 @@ Usage: pwsh -NoProfile -File tools/pester/Invoke-Gate2.ps1 -PackagePath <dir> [-
 Exit: 0 PASS, 1 FAIL, 2 PASS_PENDING_WINDOWS (Windows-only scenarios skipped), 3 usage/environment error.
 
 Matrix lookup: tools/pester/matrices/<type>-<pattern>.ps1, else <type>.ps1. Extra
-package-specific scenarios may live in <package>/tests/*.scenarios.ps1 and are appended.
+package-specific scenarios may live in <package>/src/tests/*.scenarios.ps1 and are appended.
 #>
 param(
     [Parameter(Mandatory = $true)][string]$PackagePath,
@@ -42,7 +42,7 @@ if (-not $matrix) {
 }
 $result.matrix = [System.IO.Path]::GetRelativePath($root, $matrix)
 $scenarios = @(& $matrix)
-foreach ($extra in @(Get-ChildItem -LiteralPath (Join-Path $pkg 'tests') -Filter '*.scenarios.ps1' -File -ErrorAction SilentlyContinue)) {
+foreach ($extra in @(Get-ChildItem -LiteralPath (Join-Path $pkg 'src/tests') -Filter '*.scenarios.ps1' -File -ErrorAction SilentlyContinue)) {
     $scenarios += @(& $extra.FullName)
 }
 

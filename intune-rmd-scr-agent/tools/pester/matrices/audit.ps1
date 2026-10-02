@@ -1,6 +1,6 @@
 # Gate 2 matrix: audit (detection only). Returns the scenario list.
 # Audit packages differ in what they read, so this generic matrix only fixes the exit
-# paths; each audit package adds <package>/tests/*.scenarios.ps1 with the mocks for its
+# paths; each audit package adds <package>/src/tests/*.scenarios.ps1 with the mocks for its
 # own data source. The scenarios below fit the aud-example fixture (file-system audit).
 # Get-ChildItem -File is a FileSystem-provider dynamic parameter that Pester cannot mock
 # for Windows paths on macOS/Linux, so those scenarios are WindowsOnly (run in the VM).

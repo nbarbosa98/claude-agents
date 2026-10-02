@@ -1,5 +1,6 @@
 {
   "type": "app-update",
   "subject": "Example App",
-  "summary": "Test fixture: Pattern A (winget) update of a fictional app"
+  "summary": "Test fixture: Pattern A (winget) update of a fictional app",
+  "generator": "fixture-composer"
 }

@@ -59,6 +59,24 @@ Describe 'Gate 4 on a well-behaved VM' {
     }
 }
 
+Describe 'Gate 4 runs Gate 2 WindowsOnly scenarios on Windows' {
+    It 'uploads the audit matrix and records its scenarios' {
+        $x = Invoke-Fake 'aud-example' @{ Kind = 'A'; PackageId = 'aud-example' } -Only @('none') -WinTests
+        $x.backend.State.gate2Matrix | Should -Be 'audit.ps1'
+        $x.backend.State.payload.Keys | Should -Contain 'gate2/Package.Tests.ps1'
+        ($x.result.scenarios | Where-Object name -eq 'gate2-windows-scenarios').status | Should -Be 'PASS'
+    }
+    It 'a failing Windows scenario fails Gate 4' {
+        $x = Invoke-Fake 'aud-example' @{ Kind = 'A'; PackageId = 'aud-example'; Faults = @{ gate2Fails = $true } } -Only @('none') -WinTests
+        ($x.result.scenarios | Where-Object name -eq 'gate2-windows-scenarios').status | Should -Be 'FAIL'
+        $x.result.status | Should -Be 'FAIL'
+    }
+    It 'a matrix without WindowsOnly scenarios is not uploaded' {
+        $x = Invoke-Fake 'upd-example' @{ Kind = 'A' } -Only @('absent') -WinTests
+        $x.backend.State.payload.Keys | Should -Not -Contain 'gate2/Package.Tests.ps1'
+    }
+}
+
 Describe 'Gate 4 catches broken behaviour' {
     It 'REMEDIATED without a new version on disk fails main' {
         $x = Invoke-Fake 'upd-example' @{ Kind = 'A'; Faults = @{ noVersionChange = $true } } -Only @('main')

@@ -18,7 +18,7 @@ Actions:
   BlockHosts -SpecB64          outbound firewall block + hosts-file entries for hosts
   Run  -Role -Script [-TimeoutSeconds]  run a script as SYSTEM via a one-shot scheduled task
   Collect -SpecB64             file version, IntuneRem logs, leftover staging dirs
-  Pester -SpecB64              run Pester 5 suites in <work>\pkg (helper and WindowsOnly tests)
+  Pester -SpecB64              run Pester 5: test files (paths) or a Gate 2 matrix's WindowsOnly scenarios (matrix)
   Fetch -Path -Offset -Length  return a base64 chunk of a work file
 
 Lab VM only. Windows PowerShell 5.1 compatible. ASCII only.
@@ -226,7 +226,18 @@ try {
             if (-not $p5) { throw 'NOT_RUN: Pester 5 is not installed on the VM (see tools/vm/guest/Initialize-GateVm.ps1)' }
             Import-Module $p5.Path -Force
             $cfg = New-PesterConfiguration
-            $cfg.Run.Path = @($s.paths | ForEach-Object { Join-Path (Join-Path $Work 'pkg') $_ })
+            if ($s.matrix) {
+                # Gate 2 WindowsOnly scenarios of the package, run here on real Windows.
+                $pkgDir = Join-Path $Work 'pkg'
+                . (Join-Path $pkgDir 'gate2/Mocks.ps1')
+                $all = @(& (Join-Path $pkgDir ('gate2/' + $s.matrix)))
+                $win = @($all | Where-Object { $_.WindowsOnly })
+                if ($win.Count -eq 0) { throw 'NOT_RUN: the matrix has no WindowsOnly scenarios' }
+                $Result.scenarioCount = $win.Count
+                $cfg.Run.Container = New-PesterContainer -Path (Join-Path $pkgDir 'gate2/Package.Tests.ps1') -Data @{ PackagePath = $pkgDir; Scenarios = $win }
+            } else {
+                $cfg.Run.Path = @($s.paths | ForEach-Object { Join-Path (Join-Path $Work 'pkg') $_ })
+            }
             $cfg.Run.PassThru = $true
             $cfg.Output.Verbosity = 'None'
             $r = Invoke-Pester -Configuration $cfg

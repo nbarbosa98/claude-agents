@@ -245,7 +245,24 @@ function Invoke-Gate4 {
             [System.IO.File]::WriteAllText($tp, $tampered, (New-Object System.Text.UTF8Encoding($false)))
             $files['remediate-tampered.ps1'] = $tp
         }
+        $gate2Matrix = $null
         if ($IncludeWindowsTests) {
+            # Gate 2 scenarios that need real Windows (WindowsOnly) run here, if the matrix has any.
+            $mx = @()
+            if ($dr.pattern) { $mx += ('{0}-{1}.ps1' -f $dr.type, $dr.pattern) }
+            $mx += ('{0}.ps1' -f $dr.type)
+            foreach ($m in $mx) {
+                $mp = Join-Path $script:Root ('tools/pester/matrices/' + $m)
+                if (Test-Path -LiteralPath $mp) {
+                    if ((Get-Content -LiteralPath $mp -Raw) -match 'WindowsOnly\s*=\s*\$true') {
+                        $gate2Matrix = $m
+                        $files['gate2/' + $m] = $mp
+                        $files['gate2/Mocks.ps1'] = Join-Path $script:Root 'tools/pester/Mocks.ps1'
+                        $files['gate2/Package.Tests.ps1'] = Join-Path $script:Root 'tools/pester/Package.Tests.ps1'
+                    }
+                    break
+                }
+            }
             $files['tests/helpers.ps1'] = Join-Path $script:Root '.claude/skills/intune-remediation/references/helpers.ps1'
             $files['tests/Mocks.ps1'] = Join-Path $script:Root 'tools/pester/Mocks.ps1'
             $files['tests/Helpers.Windows.Tests.ps1'] = Join-Path $script:Root 'tools/pester/helpers/Helpers.Windows.Tests.ps1'
@@ -350,6 +367,12 @@ function Invoke-Gate4 {
         }
 
         if ($IncludeWindowsTests) {
+            # Fresh, reverted VM and its own upload: never depend on what the last scenario left.
+            if ($Backend.CanRevert) {
+                $rs = & $Backend.Reset
+                if (-not $rs.ok) { throw ('revert before Windows tests failed: ' + $rs.detail) }
+            }
+            $null = Send-GatePayload -Backend $Backend -Files $files -TempDir $tmp
             $pr = Invoke-GuestAction $Backend 'Pester' @{ SpecB64 = (ConvertTo-SpecB64 @{ paths = @('tests/Helpers.Windows.Tests.ps1') }) }
             $ws = [ordered]@{ name = 'windows-helper-tests'; status = 'FAIL'; detail = ''; assertions = @() }
             if (-not $pr.ok) { $ws.status = $(if ($pr.error -like 'NOT_RUN:*') { 'NOT_RUN' } else { 'ERROR' }); $ws.detail = $pr.error }
@@ -359,6 +382,18 @@ function Invoke-Gate4 {
                 $ws.failures = $pr.failures
             }
             $scenarioResults += $ws
+            if ($gate2Matrix) {
+                $gr = Invoke-GuestAction $Backend 'Pester' @{ SpecB64 = (ConvertTo-SpecB64 @{ matrix = $gate2Matrix }) }
+                $g2 = [ordered]@{ name = 'gate2-windows-scenarios'; status = 'FAIL'; detail = $gate2Matrix; assertions = @() }
+                if (-not $gr.ok) { $g2.status = $(if ($gr.error -like 'NOT_RUN:*') { 'NOT_RUN' } else { 'ERROR' }); $g2.detail = $gr.error }
+                else {
+                    $ok = ($gr.failed -eq 0 -and $gr.passed -gt 0 -and $gr.skipped -eq 0)
+                    $g2.assertions = @(@{ name = 'Gate 2 WindowsOnly scenarios on Windows'; pass = $ok; detail = "passed=$($gr.passed) failed=$($gr.failed) skipped=$($gr.skipped)" })
+                    $g2.status = if ($ok) { 'PASS' } else { 'FAIL' }
+                    $g2.failures = $gr.failures
+                }
+                $scenarioResults += $g2
+            }
         }
 
         $result.scenarios = $scenarioResults

@@ -28,7 +28,8 @@ function Initialize-Log {
         Remove-Item -Force -ErrorAction SilentlyContinue
 }
 
-function Write-Log {
+function Write-RemediationLog {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingEmptyCatchBlock', '', Justification = 'Logging must never fail the run; the status line is the contract.')]
     param(
         [Parameter(Mandatory = $true)][AllowEmptyString()][string]$Message,
         [ValidateSet('INFO', 'WARN', 'ERROR')][string]$Level = 'INFO'
@@ -58,7 +59,7 @@ function Exit-WithCode {
     }
     $line = $sb.ToString()
     if ($line.Length -gt 512) { $line = $line.Substring(0, 509) + '...' }
-    Write-Log -Message ('STATUS exit={0} {1}' -f $Code, $line)
+    Write-RemediationLog -Message ('STATUS exit={0} {1}' -f $Code, $line)
     Write-Host $line
     exit $Code
 }
@@ -96,7 +97,7 @@ function Invoke-ProcessWithTimeout {
             $result.ExitCode = $p.ExitCode
         } else {
             $result.TimedOut = $true
-            Write-Log -Level 'WARN' -Message ('Timeout after {0}s: {1}. Killing process tree.' -f $TimeoutSeconds, $FilePath)
+            Write-RemediationLog -Level 'WARN' -Message ('Timeout after {0}s: {1}. Killing process tree.' -f $TimeoutSeconds, $FilePath)
             $tk = Join-Path $env:SystemRoot 'System32\taskkill.exe'
             $k = Start-Process -FilePath $tk -ArgumentList @('/PID', $p.Id, '/T', '/F') -PassThru -NoNewWindow
             $null = $k.WaitForExit(15000)
@@ -145,7 +146,7 @@ function Get-FileVersionSafe {
 # ---------------------------------------------------------------------------
 # Install discovery (HR-09, ADR-012 D2).
 # ---------------------------------------------------------------------------
-function Get-MachineInstalls {
+function Get-MachineInstall {
     # HKLM Uninstall in BOTH registry views (64-bit and WOW6432Node).
     param([Parameter(Mandatory = $true)][string]$DisplayNamePattern)
     $found = New-Object System.Collections.ArrayList
@@ -181,11 +182,11 @@ function Get-MachineInstalls {
         }
     }
     # Emit items one by one (callers wrap the call in @()). 'return , $array' would make
-    # @(Get-MachineInstalls ...) a one-element array even when nothing was found.
+    # @(Get-MachineInstall ...) a one-element array even when nothing was found.
     return $found.ToArray()
 }
 
-function Get-UserScopeInstalls {
+function Get-UserScopeInstall {
     # Profile paths come from ProfileList (not C:\Users guessing, not $env vars,
     # which point at the SYSTEM profile under SYSTEM - HR-06).
     # HKU: loaded hives only (signed-in users). NTUSER.DAT of signed-out users is
@@ -232,7 +233,7 @@ function Get-InstalledAppVersion {
         [string[]]$UserExeRelPaths = @(),
         [Parameter(Mandatory = $true)][ValidateSet('FileVersion', 'DisplayVersion')][string]$VersionSource
     )
-    $machine = @(Get-MachineInstalls -DisplayNamePattern $DisplayNamePattern)
+    $machine = @(Get-MachineInstall -DisplayNamePattern $DisplayNamePattern)
     $exeFound = $false
     $installed = $null
     foreach ($p in $MainExePaths) {
@@ -250,7 +251,7 @@ function Get-InstalledAppVersion {
     }
     $r = New-Object PSObject -Property @{ Status = ''; Version = $installed; UserCount = 0 }
     if ($machine.Count -eq 0 -and -not $exeFound) {
-        $user = @(Get-UserScopeInstalls -DisplayNamePattern $DisplayNamePattern -RelativeExePaths $UserExeRelPaths)
+        $user = @(Get-UserScopeInstall -DisplayNamePattern $DisplayNamePattern -RelativeExePaths $UserExeRelPaths)
         $r.UserCount = $user.Count
         if ($user.Count -gt 0) { $r.Status = 'UserOnly' } else { $r.Status = 'Absent' }
         return $r
@@ -296,7 +297,7 @@ function Invoke-Winget {
         $wgArgs = @('upgrade') + $common + @('--scope', 'machine', '--silent', '--accept-package-agreements')
         if ($IncludeUnknown) { $wgArgs += '--include-unknown' }
     }
-    Write-Log -Message ('winget {0}' -f ($wgArgs -join ' '))
+    Write-RemediationLog -Message ('winget {0}' -f ($wgArgs -join ' '))
     return Invoke-ProcessWithTimeout -FilePath $WingetPath -ArgumentList $wgArgs -TimeoutSeconds $TimeoutSeconds -CaptureOutput
 }
 
@@ -311,7 +312,7 @@ function Get-WingetCatalogVersion {
     )
     $r = Invoke-Winget -WingetPath $WingetPath -Operation 'show-versions' -PackageId $PackageId -TimeoutSeconds $TimeoutSeconds
     if ($r.TimedOut -or $r.ExitCode -ne 0) {
-        Write-Log -Level 'WARN' -Message ('winget show failed: exit={0} timedOut={1}' -f $r.ExitCode, $r.TimedOut)
+        Write-RemediationLog -Level 'WARN' -Message ('winget show failed: exit={0} timedOut={1}' -f $r.ExitCode, $r.TimedOut)
         return $null
     }
     $max = $null
@@ -347,6 +348,7 @@ function Test-TrustedAcl {
 }
 
 function Set-TrustedAcl {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Unattended SYSTEM script: no interactive caller, -WhatIf/-Confirm have no meaning.')]
     param([Parameter(Mandatory = $true)][string]$Path)
     $acl = New-Object System.Security.AccessControl.DirectorySecurity
     $acl.SetAccessRuleProtection($true, $false)
@@ -361,6 +363,7 @@ function Set-TrustedAcl {
 }
 
 function New-SecureStagingDir {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Unattended SYSTEM script: no interactive caller, -WhatIf/-Confirm have no meaning.')]
     param([Parameter(Mandatory = $true)][ValidatePattern('^[a-z0-9][a-z0-9-]{0,48}$')][string]$PackageId)
     $parent = Join-Path $env:ProgramData 'IntuneRemediation'
     $root = Join-Path $parent 'Staging'
@@ -378,21 +381,22 @@ function New-SecureStagingDir {
     Set-TrustedAcl -Path $leaf
     $why = Test-TrustedAcl -Path $leaf
     if ($why) { throw ('staging dir untrusted ({0}): {1}' -f $why, $leaf) }
-    Write-Log -Message ('Staging dir ready: ' + $leaf)
+    Write-RemediationLog -Message ('Staging dir ready: ' + $leaf)
     return $leaf
 }
 
 function Remove-SecureStagingDir {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Unattended SYSTEM script: no interactive caller, -WhatIf/-Confirm have no meaning.')]
     param([AllowNull()][AllowEmptyString()][string]$Path)
     if (-not $Path) { return }
     $root = Join-Path $env:ProgramData 'IntuneRemediation\Staging'
     if (-not $Path.StartsWith($root + '\', [System.StringComparison]::OrdinalIgnoreCase)) {
-        Write-Log -Level 'ERROR' -Message ('Refusing to delete outside staging root: ' + $Path)
+        Write-RemediationLog -Level 'ERROR' -Message ('Refusing to delete outside staging root: ' + $Path)
         return
     }
     if (Test-Path -LiteralPath $Path) {
         Remove-Item -LiteralPath $Path -Recurse -Force -ErrorAction SilentlyContinue
-        if (Test-Path -LiteralPath $Path) { Write-Log -Level 'WARN' -Message ('Staging dir not fully removed: ' + $Path) }
+        if (Test-Path -LiteralPath $Path) { Write-RemediationLog -Level 'WARN' -Message ('Staging dir not fully removed: ' + $Path) }
     }
 }
 
@@ -481,13 +485,14 @@ function Test-DesiredStateEntry {
 
 function Set-DesiredStateEntry {
     # Logs the prior value first (rollback data), then applies.
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Unattended SYSTEM script: no interactive caller, -WhatIf/-Confirm have no meaning.')]
     param([Parameter(Mandatory = $true)][hashtable]$Entry)
     switch ($Entry.Kind) {
         'Registry' {
             $prior = Get-ItemProperty -LiteralPath $Entry.Path -Name $Entry.Name -ErrorAction SilentlyContinue
             $pv = '<absent>'
             if ($null -ne $prior) { $pv = [string]$prior.($Entry.Name) }
-            Write-Log -Message ('ROLLBACK Registry {0}\{1} prior={2}' -f $Entry.Path, $Entry.Name, $pv)
+            Write-RemediationLog -Message ('ROLLBACK Registry {0}\{1} prior={2}' -f $Entry.Path, $Entry.Name, $pv)
             if (-not (Test-Path -LiteralPath $Entry.Path)) { $null = New-Item -Path $Entry.Path -Force }
             $null = New-ItemProperty -LiteralPath $Entry.Path -Name $Entry.Name -PropertyType $Entry.Type -Value $Entry.Value -Force
         }
@@ -495,7 +500,7 @@ function Set-DesiredStateEntry {
             $svc = Get-Service -Name $Entry.Name -ErrorAction SilentlyContinue
             if ($null -eq $svc) { return }
             $prior = (Get-ItemProperty -LiteralPath ('HKLM:\SYSTEM\CurrentControlSet\Services\' + $Entry.Name) -Name Start -ErrorAction SilentlyContinue).Start
-            Write-Log -Message ('ROLLBACK Service {0} priorStart={1}' -f $Entry.Name, $prior)
+            Write-RemediationLog -Message ('ROLLBACK Service {0} priorStart={1}' -f $Entry.Name, $prior)
             Set-Service -Name $Entry.Name -StartupType $Entry.StartType
             if ($Entry.StartType -eq 'Disabled' -and $svc.Status -eq 'Running' -and $Entry.StopIfRunning) {
                 Stop-Service -Name $Entry.Name -Force -ErrorAction Stop

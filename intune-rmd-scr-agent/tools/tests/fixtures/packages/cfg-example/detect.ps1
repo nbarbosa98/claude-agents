@@ -14,7 +14,6 @@ $DESIRED = @(
     @{ Kind = 'Registry'; Path = 'HKLM:\SOFTWARE\ExampleVendor\ExampleApp'; Name = 'TelemetryLevel'; Type = 'DWord'; Value = 0 },
     @{ Kind = 'Service'; Name = 'ExampleSvc'; StartType = 'Disabled'; StopIfRunning = $false; AbsentIsCompliant = $true }
 )
-$REBOOT_REQUIRED = $false
 
 # ===== Helpers (copied verbatim from references/helpers.ps1) =====
 function Initialize-Log {
@@ -35,7 +34,8 @@ function Initialize-Log {
         Remove-Item -Force -ErrorAction SilentlyContinue
 }
 
-function Write-Log {
+function Write-RemediationLog {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingEmptyCatchBlock', '', Justification = 'Logging must never fail the run; the status line is the contract.')]
     param(
         [Parameter(Mandatory = $true)][AllowEmptyString()][string]$Message,
         [ValidateSet('INFO', 'WARN', 'ERROR')][string]$Level = 'INFO'
@@ -59,7 +59,7 @@ function Exit-WithCode {
     }
     $line = $sb.ToString()
     if ($line.Length -gt 512) { $line = $line.Substring(0, 509) + '...' }
-    Write-Log -Message ('STATUS exit={0} {1}' -f $Code, $line)
+    Write-RemediationLog -Message ('STATUS exit={0} {1}' -f $Code, $line)
     Write-Host $line
     exit $Code
 }
@@ -86,7 +86,7 @@ function Test-DesiredStateEntry {
 # ===== Main =====
 try {
     Initialize-Log -PackageId $PACKAGE_ID -Role 'detect'
-    Write-Log -Message ('Start detect. PS {0}, 64-bit process: {1}' -f $PSVersionTable.PSVersion, [Environment]::Is64BitProcess)
+    Write-RemediationLog -Message ('Start detect. PS {0}, 64-bit process: {1}' -f $PSVersionTable.PSVersion, [Environment]::Is64BitProcess)
 
     $drift = New-Object System.Collections.ArrayList
     foreach ($e in $DESIRED) {
@@ -95,13 +95,13 @@ try {
     if ($drift.Count -eq 0) {
         Exit-WithCode -Token 'COMPLIANT' -Message ('{0} compliant' -f $SUBJECT) -Code 0
     }
-    Write-Log -Message ('Drifted: ' + ($drift -join ', '))
+    Write-RemediationLog -Message ('Drifted: ' + ($drift -join ', '))
     Exit-WithCode -Token 'DRIFTED' -Message ('{0} drifted: {1} setting(s): {2}' -f $SUBJECT, $drift.Count, ($drift -join ', ')) -Code 1
 }
 catch {
     if ($_.Exception.Message -like 'ExitCalled:*') { throw }
     $reason = (($_.Exception.Message -replace '[\r\n]+', ' ') -replace '[^\x20-\x7E]', '?')
-    Write-Log -Level 'ERROR' -Message ('Unhandled: ' + $reason)
+    Write-RemediationLog -Level 'ERROR' -Message ('Unhandled: ' + $reason)
     Write-Host ('ERROR | {0} script error: {1}' -f $SUBJECT, $reason)
     exit 0
 }

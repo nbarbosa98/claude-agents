@@ -16,9 +16,7 @@ $USER_EXE_RELPATHS = @('AppData\Local\Programs\Example App\example.exe')
 $VERSION_SOURCE    = 'FileVersion'
 $WINGET_ID         = 'Example.App'
 $INCLUDE_UNKNOWN   = $false
-$WINGET_REBOOT_TO_FINISH = -1978334967
 $TIMEOUT_CATALOG   = 60
-$TIMEOUT_UPGRADE   = 300
 
 # ===== Helpers (copied verbatim from references/helpers.ps1) =====
 function Initialize-Log {
@@ -39,7 +37,8 @@ function Initialize-Log {
         Remove-Item -Force -ErrorAction SilentlyContinue
 }
 
-function Write-Log {
+function Write-RemediationLog {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingEmptyCatchBlock', '', Justification = 'Logging must never fail the run; the status line is the contract.')]
     param(
         [Parameter(Mandatory = $true)][AllowEmptyString()][string]$Message,
         [ValidateSet('INFO', 'WARN', 'ERROR')][string]$Level = 'INFO'
@@ -63,7 +62,7 @@ function Exit-WithCode {
     }
     $line = $sb.ToString()
     if ($line.Length -gt 512) { $line = $line.Substring(0, 509) + '...' }
-    Write-Log -Message ('STATUS exit={0} {1}' -f $Code, $line)
+    Write-RemediationLog -Message ('STATUS exit={0} {1}' -f $Code, $line)
     Write-Host $line
     exit $Code
 }
@@ -96,7 +95,7 @@ function Invoke-ProcessWithTimeout {
             $result.ExitCode = $p.ExitCode
         } else {
             $result.TimedOut = $true
-            Write-Log -Level 'WARN' -Message ('Timeout after {0}s: {1}. Killing process tree.' -f $TimeoutSeconds, $FilePath)
+            Write-RemediationLog -Level 'WARN' -Message ('Timeout after {0}s: {1}. Killing process tree.' -f $TimeoutSeconds, $FilePath)
             $tk = Join-Path $env:SystemRoot 'System32\taskkill.exe'
             $k = Start-Process -FilePath $tk -ArgumentList @('/PID', $p.Id, '/T', '/F') -PassThru -NoNewWindow
             $null = $k.WaitForExit(15000)
@@ -137,7 +136,7 @@ function Get-FileVersionSafe {
     } catch { return $null }
 }
 
-function Get-MachineInstalls {
+function Get-MachineInstall {
     # HKLM Uninstall in BOTH registry views (64-bit and WOW6432Node).
     param([Parameter(Mandatory = $true)][string]$DisplayNamePattern)
     $found = New-Object System.Collections.ArrayList
@@ -173,11 +172,11 @@ function Get-MachineInstalls {
         }
     }
     # Emit items one by one (callers wrap the call in @()). 'return , $array' would make
-    # @(Get-MachineInstalls ...) a one-element array even when nothing was found.
+    # @(Get-MachineInstall ...) a one-element array even when nothing was found.
     return $found.ToArray()
 }
 
-function Get-UserScopeInstalls {
+function Get-UserScopeInstall {
     # Profile paths come from ProfileList (not C:\Users guessing, not $env vars,
     # which point at the SYSTEM profile under SYSTEM - HR-06).
     # HKU: loaded hives only (signed-in users). NTUSER.DAT of signed-out users is
@@ -224,7 +223,7 @@ function Get-InstalledAppVersion {
         [string[]]$UserExeRelPaths = @(),
         [Parameter(Mandatory = $true)][ValidateSet('FileVersion', 'DisplayVersion')][string]$VersionSource
     )
-    $machine = @(Get-MachineInstalls -DisplayNamePattern $DisplayNamePattern)
+    $machine = @(Get-MachineInstall -DisplayNamePattern $DisplayNamePattern)
     $exeFound = $false
     $installed = $null
     foreach ($p in $MainExePaths) {
@@ -242,7 +241,7 @@ function Get-InstalledAppVersion {
     }
     $r = New-Object PSObject -Property @{ Status = ''; Version = $installed; UserCount = 0 }
     if ($machine.Count -eq 0 -and -not $exeFound) {
-        $user = @(Get-UserScopeInstalls -DisplayNamePattern $DisplayNamePattern -RelativeExePaths $UserExeRelPaths)
+        $user = @(Get-UserScopeInstall -DisplayNamePattern $DisplayNamePattern -RelativeExePaths $UserExeRelPaths)
         $r.UserCount = $user.Count
         if ($user.Count -gt 0) { $r.Status = 'UserOnly' } else { $r.Status = 'Absent' }
         return $r
@@ -283,7 +282,7 @@ function Invoke-Winget {
         $wgArgs = @('upgrade') + $common + @('--scope', 'machine', '--silent', '--accept-package-agreements')
         if ($IncludeUnknown) { $wgArgs += '--include-unknown' }
     }
-    Write-Log -Message ('winget {0}' -f ($wgArgs -join ' '))
+    Write-RemediationLog -Message ('winget {0}' -f ($wgArgs -join ' '))
     return Invoke-ProcessWithTimeout -FilePath $WingetPath -ArgumentList $wgArgs -TimeoutSeconds $TimeoutSeconds -CaptureOutput
 }
 
@@ -298,7 +297,7 @@ function Get-WingetCatalogVersion {
     )
     $r = Invoke-Winget -WingetPath $WingetPath -Operation 'show-versions' -PackageId $PackageId -TimeoutSeconds $TimeoutSeconds
     if ($r.TimedOut -or $r.ExitCode -ne 0) {
-        Write-Log -Level 'WARN' -Message ('winget show failed: exit={0} timedOut={1}' -f $r.ExitCode, $r.TimedOut)
+        Write-RemediationLog -Level 'WARN' -Message ('winget show failed: exit={0} timedOut={1}' -f $r.ExitCode, $r.TimedOut)
         return $null
     }
     $max = $null
@@ -315,17 +314,17 @@ function Get-WingetCatalogVersion {
 # ===== Main =====
 try {
     Initialize-Log -PackageId $PACKAGE_ID -Role 'detect'
-    Write-Log -Message ('Start detect. PS {0}, 64-bit process: {1}' -f $PSVersionTable.PSVersion, [Environment]::Is64BitProcess)
+    Write-RemediationLog -Message ('Start detect. PS {0}, 64-bit process: {1}' -f $PSVersionTable.PSVersion, [Environment]::Is64BitProcess)
 
     $app = Get-InstalledAppVersion -DisplayNamePattern $DISPLAY_NAME_LIKE -MainExePaths $MAIN_EXE_PATHS -UserExeRelPaths $USER_EXE_RELPATHS -VersionSource $VERSION_SOURCE
-    Write-Log -Message ('Install status {0}, version {1}' -f $app.Status, $app.Version)
+    Write-RemediationLog -Message ('Install status {0}, version {1}' -f $app.Status, $app.Version)
     if ($app.Status -eq 'UserOnly') {
         Exit-WithCode -Token 'SKIPPED_USER_SCOPE' -Message ('{0} found in user scope only. Skipped' -f $SUBJECT) -Code 0
     }
     if ($app.Status -eq 'Absent') {
         Exit-WithCode -Token 'NOT_INSTALLED' -Message ('{0} not found' -f $SUBJECT) -Code 0
     }
-    if ($app.Status -eq 'Unreadable') {
+    if ($app.Status -eq 'Unreadable' -and -not $INCLUDE_UNKNOWN) {
         Exit-WithCode -Token 'NOT_DETERMINED' -Message ('{0} state not determined: installed version unreadable' -f $SUBJECT) -Code 0
     }
     $winget = Get-WingetPath
@@ -336,7 +335,10 @@ try {
     if ($null -eq $target) {
         Exit-WithCode -Token 'NOT_DETERMINED' -Message ('{0} state not determined: catalog version unavailable' -f $SUBJECT) -Code 0
     }
-    Write-Log -Message ('Installed {0}, catalog {1}' -f $app.Version, $target)
+    Write-RemediationLog -Message ('Installed {0}, catalog {1}' -f $app.Version, $target)
+    if ($app.Status -eq 'Unreadable') {
+        Exit-WithCode -Token 'OUTDATED' -Message ('{0} unknown version is treated as outdated. Target {1}' -f $SUBJECT, $target) -Code 1
+    }
     if ($app.Version -ge $target) {
         Exit-WithCode -Token 'UP_TO_DATE' -Message ('{0} {1} is up to date' -f $SUBJECT, $app.Version) -Code 0
     }
@@ -345,7 +347,7 @@ try {
 catch {
     if ($_.Exception.Message -like 'ExitCalled:*') { throw }
     $reason = (($_.Exception.Message -replace '[\r\n]+', ' ') -replace '[^\x20-\x7E]', '?')
-    Write-Log -Level 'ERROR' -Message ('Unhandled: ' + $reason)
+    Write-RemediationLog -Level 'ERROR' -Message ('Unhandled: ' + $reason)
     Write-Host ('ERROR | {0} script error: {1}' -f $SUBJECT, $reason)
     exit 0
 }

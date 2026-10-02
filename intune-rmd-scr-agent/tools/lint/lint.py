@@ -47,7 +47,7 @@ AUDIT_BANNED_PREFIX = ("Set-", "New-", "Remove-", "Stop-", "Restart-", "Start-",
                        "Copy-", "Install-", "Uninstall-", "Register-", "Unregister-", "Enable-", "Disable-",
                        "Add-", "Update-", "Invoke-FileDownload", "Invoke-ProcessWithTimeout", "Invoke-Winget",
                        "Set-DesiredStateEntry")
-AUDIT_ALLOWED = {"Initialize-Log", "Write-Log", "Exit-WithCode", "New-Object"}
+AUDIT_ALLOWED = {"Initialize-Log", "Write-RemediationLog", "Exit-WithCode", "New-Object"}
 PLACEHOLDER = re.compile(r"__[A-Z][A-Z0-9_]*__|<AppDisplayName>")
 
 

@@ -19,7 +19,7 @@
     $msiexec = Join-Path $env:SystemRoot 'System32\msiexec.exe'
     $msiLog = Join-Path $stagingDir 'msi.log'
     $r = Invoke-ProcessWithTimeout -FilePath $msiexec -ArgumentList @('/i', ('"{0}"' -f $msi), '/qn', '/norestart', '/l*v', ('"{0}"' -f $msiLog)) -TimeoutSeconds $TIMEOUT_INSTALL
-    Write-Log -Message ('msiexec exit={0} timedOut={1}' -f $r.ExitCode, $r.TimedOut)
+    Write-RemediationLog -Message ('msiexec exit={0} timedOut={1}' -f $r.ExitCode, $r.TimedOut)
     $after = Get-InstalledAppVersion -DisplayNamePattern $DISPLAY_NAME_LIKE -MainExePaths $MAIN_EXE_PATHS -UserExeRelPaths $USER_EXE_RELPATHS -VersionSource $VERSION_SOURCE
     if ($after.Status -eq 'Machine' -and $after.Version -ge $target) {
         Exit-WithCode -Token 'REMEDIATED' -Message ('{0} updated to {1}' -f $SUBJECT, $after.Version) -Code 0

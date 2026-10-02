@@ -12,7 +12,7 @@ BeforeAll {
     if (-not (Get-Command Get-AuthenticodeSignature -ErrorAction SilentlyContinue)) {
         function global:Get-AuthenticodeSignature { param([string]$LiteralPath, [string]$FilePath) }
     }
-    Mock Write-Log { }
+    Mock Write-RemediationLog { }
 }
 
 Describe 'ConvertTo-NormalizedVersion' {
@@ -94,8 +94,8 @@ Describe 'Get-WingetCatalogVersion is label-independent' {
 
 Describe 'Get-InstalledAppVersion' {
     BeforeEach {
-        Mock Get-MachineInstalls { }
-        Mock Get-UserScopeInstalls { }
+        Mock Get-MachineInstall { }
+        Mock Get-UserScopeInstall { }
         Mock Test-Path { $false }
         Mock Get-FileVersionSafe { $null }
     }
@@ -103,34 +103,34 @@ Describe 'Get-InstalledAppVersion' {
         (Get-InstalledAppVersion -DisplayNamePattern 'X*' -MainExePaths @('p') -VersionSource 'FileVersion').Status | Should -Be 'Absent'
     }
     It 'UserOnly when only per-user installs exist' {
-        Mock Get-UserScopeInstalls { New-UserInstall }
+        Mock Get-UserScopeInstall { New-UserInstall }
         (Get-InstalledAppVersion -DisplayNamePattern 'X*' -MainExePaths @('p') -VersionSource 'FileVersion').Status | Should -Be 'UserOnly'
     }
     It 'Machine from the exe file version, preferred over DisplayVersion' {
         Mock Test-Path { $true }
         Mock Get-FileVersionSafe { [version]'2.0.0.5' }
-        Mock Get-MachineInstalls { New-MachineInstall 'X' '2.0' }
+        Mock Get-MachineInstall { New-MachineInstall 'X' '2.0' }
         $r = Get-InstalledAppVersion -DisplayNamePattern 'X*' -MainExePaths @('p') -VersionSource 'FileVersion'
         $r.Status | Should -Be 'Machine'
         $r.Version.ToString() | Should -Be '2.0.0.5'
     }
     It 'falls back to DisplayVersion when the file version is unreadable' {
-        Mock Get-MachineInstalls { New-MachineInstall 'X' '3.1' }
+        Mock Get-MachineInstall { New-MachineInstall 'X' '3.1' }
         $r = Get-InstalledAppVersion -DisplayNamePattern 'X*' -MainExePaths @('p') -VersionSource 'FileVersion'
         $r.Version.ToString() | Should -Be '3.1.0.0'
     }
     It 'takes the highest of several machine entries' {
-        Mock Get-MachineInstalls { New-MachineInstall 'X' '3.1'; New-MachineInstall 'X' '3.10' }
+        Mock Get-MachineInstall { New-MachineInstall 'X' '3.1'; New-MachineInstall 'X' '3.10' }
         (Get-InstalledAppVersion -DisplayNamePattern 'X*' -VersionSource 'DisplayVersion').Version.ToString() | Should -Be '3.10.0.0'
     }
     It 'Unreadable when installed but no version parses' {
-        Mock Get-MachineInstalls { New-MachineInstall 'X' 'unknown' }
+        Mock Get-MachineInstall { New-MachineInstall 'X' 'unknown' }
         (Get-InstalledAppVersion -DisplayNamePattern 'X*' -VersionSource 'DisplayVersion').Status | Should -Be 'Unreadable'
     }
     It 'does not look at user scope when a machine install exists' {
-        Mock Get-MachineInstalls { New-MachineInstall 'X' '1.0' }
+        Mock Get-MachineInstall { New-MachineInstall 'X' '1.0' }
         $null = Get-InstalledAppVersion -DisplayNamePattern 'X*' -VersionSource 'DisplayVersion'
-        Should -Invoke Get-UserScopeInstalls -Times 0 -Exactly
+        Should -Invoke Get-UserScopeInstall -Times 0 -Exactly
     }
 }
 

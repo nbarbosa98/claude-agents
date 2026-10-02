@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "1.0.0",
+  "packageId": "cfg-example",
+  "driftSetup": [ { "path": "HKLM:\\SOFTWARE\\ExampleVendor\\ExampleApp", "name": "TelemetryLevel", "type": "DWord", "value": 3 } ],
+  "compliantSetup": [ { "path": "HKLM:\\SOFTWARE\\ExampleVendor\\ExampleApp", "name": "TelemetryLevel", "type": "DWord", "value": 0 } ],
+  "registryCheck": { "path": "HKLM:\\SOFTWARE\\ExampleVendor\\ExampleApp", "name": "TelemetryLevel", "value": 0 },
+  "scenarios": ["main", "compliant"]
+}

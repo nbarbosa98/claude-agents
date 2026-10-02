@@ -19,7 +19,7 @@ __HELPERS__
 $stagingDir = $null
 try {
     Initialize-Log -PackageId $PACKAGE_ID -Role 'remediate'
-    Write-Log -Message ('Start remediate. PS {0}, 64-bit process: {1}' -f $PSVersionTable.PSVersion, [Environment]::Is64BitProcess)
+    Write-RemediationLog -Message ('Start remediate. PS {0}, 64-bit process: {1}' -f $PSVersionTable.PSVersion, [Environment]::Is64BitProcess)
 
     # HR-19: re-check state first; exit with the compliant token if nothing to do.
 __REMEDIATE_BODY__
@@ -27,7 +27,7 @@ __REMEDIATE_BODY__
 catch {
     if ($_.Exception.Message -like 'ExitCalled:*') { throw }
     $reason = (($_.Exception.Message -replace '[\r\n]+', ' ') -replace '[^\x20-\x7E]', '?')
-    Write-Log -Level 'ERROR' -Message ('Unhandled: ' + $reason)
+    Write-RemediationLog -Level 'ERROR' -Message ('Unhandled: ' + $reason)
     Write-Host ('ERROR | {0} script error: {1}' -f $SUBJECT, $reason)
     exit 1
 }

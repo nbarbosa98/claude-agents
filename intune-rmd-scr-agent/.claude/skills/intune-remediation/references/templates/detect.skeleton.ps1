@@ -18,14 +18,14 @@ __HELPERS__
 # ===== Main =====
 try {
     Initialize-Log -PackageId $PACKAGE_ID -Role 'detect'
-    Write-Log -Message ('Start detect. PS {0}, 64-bit process: {1}' -f $PSVersionTable.PSVersion, [Environment]::Is64BitProcess)
+    Write-RemediationLog -Message ('Start detect. PS {0}, 64-bit process: {1}' -f $PSVersionTable.PSVersion, [Environment]::Is64BitProcess)
 
 __DETECT_BODY__
 }
 catch {
     if ($_.Exception.Message -like 'ExitCalled:*') { throw }
     $reason = (($_.Exception.Message -replace '[\r\n]+', ' ') -replace '[^\x20-\x7E]', '?')
-    Write-Log -Level 'ERROR' -Message ('Unhandled: ' + $reason)
+    Write-RemediationLog -Level 'ERROR' -Message ('Unhandled: ' + $reason)
     Write-Host ('ERROR | {0} script error: {1}' -f $SUBJECT, $reason)
     exit 0
 }

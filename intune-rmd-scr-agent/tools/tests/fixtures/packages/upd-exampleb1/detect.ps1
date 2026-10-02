@@ -15,12 +15,6 @@ $MAIN_EXE_PATHS     = @('C:\Program Files\Example Tool\tool.exe')
 $USER_EXE_RELPATHS  = @('AppData\Local\Example Tool\tool.exe')
 $VERSION_SOURCE     = 'FileVersion'
 $TARGET_VERSION     = '5.2.0.0'
-$DOWNLOAD_URL       = 'https://downloads.example.invalid/tool/5.2.0/tool-x64.msi'
-$EXPECTED_SIGNER_CN = 'Example Vendor Ltd'
-$EXPECTED_SIGNER_O  = 'Example Vendor Ltd'
-$EXPECTED_SHA256    = ''
-$TIMEOUT_DOWNLOAD   = 120
-$TIMEOUT_INSTALL    = 300
 
 # ===== Helpers (copied verbatim from references/helpers.ps1) =====
 function Initialize-Log {
@@ -41,7 +35,8 @@ function Initialize-Log {
         Remove-Item -Force -ErrorAction SilentlyContinue
 }
 
-function Write-Log {
+function Write-RemediationLog {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingEmptyCatchBlock', '', Justification = 'Logging must never fail the run; the status line is the contract.')]
     param(
         [Parameter(Mandatory = $true)][AllowEmptyString()][string]$Message,
         [ValidateSet('INFO', 'WARN', 'ERROR')][string]$Level = 'INFO'
@@ -65,7 +60,7 @@ function Exit-WithCode {
     }
     $line = $sb.ToString()
     if ($line.Length -gt 512) { $line = $line.Substring(0, 509) + '...' }
-    Write-Log -Message ('STATUS exit={0} {1}' -f $Code, $line)
+    Write-RemediationLog -Message ('STATUS exit={0} {1}' -f $Code, $line)
     Write-Host $line
     exit $Code
 }
@@ -94,7 +89,7 @@ function Get-FileVersionSafe {
     } catch { return $null }
 }
 
-function Get-MachineInstalls {
+function Get-MachineInstall {
     # HKLM Uninstall in BOTH registry views (64-bit and WOW6432Node).
     param([Parameter(Mandatory = $true)][string]$DisplayNamePattern)
     $found = New-Object System.Collections.ArrayList
@@ -130,11 +125,11 @@ function Get-MachineInstalls {
         }
     }
     # Emit items one by one (callers wrap the call in @()). 'return , $array' would make
-    # @(Get-MachineInstalls ...) a one-element array even when nothing was found.
+    # @(Get-MachineInstall ...) a one-element array even when nothing was found.
     return $found.ToArray()
 }
 
-function Get-UserScopeInstalls {
+function Get-UserScopeInstall {
     # Profile paths come from ProfileList (not C:\Users guessing, not $env vars,
     # which point at the SYSTEM profile under SYSTEM - HR-06).
     # HKU: loaded hives only (signed-in users). NTUSER.DAT of signed-out users is
@@ -181,7 +176,7 @@ function Get-InstalledAppVersion {
         [string[]]$UserExeRelPaths = @(),
         [Parameter(Mandatory = $true)][ValidateSet('FileVersion', 'DisplayVersion')][string]$VersionSource
     )
-    $machine = @(Get-MachineInstalls -DisplayNamePattern $DisplayNamePattern)
+    $machine = @(Get-MachineInstall -DisplayNamePattern $DisplayNamePattern)
     $exeFound = $false
     $installed = $null
     foreach ($p in $MainExePaths) {
@@ -199,7 +194,7 @@ function Get-InstalledAppVersion {
     }
     $r = New-Object PSObject -Property @{ Status = ''; Version = $installed; UserCount = 0 }
     if ($machine.Count -eq 0 -and -not $exeFound) {
-        $user = @(Get-UserScopeInstalls -DisplayNamePattern $DisplayNamePattern -RelativeExePaths $UserExeRelPaths)
+        $user = @(Get-UserScopeInstall -DisplayNamePattern $DisplayNamePattern -RelativeExePaths $UserExeRelPaths)
         $r.UserCount = $user.Count
         if ($user.Count -gt 0) { $r.Status = 'UserOnly' } else { $r.Status = 'Absent' }
         return $r
@@ -211,7 +206,7 @@ function Get-InstalledAppVersion {
 # ===== Main =====
 try {
     Initialize-Log -PackageId $PACKAGE_ID -Role 'detect'
-    Write-Log -Message ('Start detect. PS {0}, 64-bit process: {1}' -f $PSVersionTable.PSVersion, [Environment]::Is64BitProcess)
+    Write-RemediationLog -Message ('Start detect. PS {0}, 64-bit process: {1}' -f $PSVersionTable.PSVersion, [Environment]::Is64BitProcess)
 
     $app = Get-InstalledAppVersion -DisplayNamePattern $DISPLAY_NAME_LIKE -MainExePaths $MAIN_EXE_PATHS -UserExeRelPaths $USER_EXE_RELPATHS -VersionSource $VERSION_SOURCE
     if ($app.Status -eq 'UserOnly') {
@@ -232,7 +227,7 @@ try {
 catch {
     if ($_.Exception.Message -like 'ExitCalled:*') { throw }
     $reason = (($_.Exception.Message -replace '[\r\n]+', ' ') -replace '[^\x20-\x7E]', '?')
-    Write-Log -Level 'ERROR' -Message ('Unhandled: ' + $reason)
+    Write-RemediationLog -Level 'ERROR' -Message ('Unhandled: ' + $reason)
     Write-Host ('ERROR | {0} script error: {1}' -f $SUBJECT, $reason)
     exit 0
 }

@@ -23,12 +23,12 @@ function global:New-TrustResult([bool]$Trusted, [string]$Reason = '') {
     return New-Object PSObject -Property @{ Trusted = $Trusted; Reason = $Reason }
 }
 
-# Row of Get-MachineInstalls.
+# Row of Get-MachineInstall.
 function global:New-MachineInstall([string]$DisplayName, [string]$DisplayVersion) {
     return New-Object PSObject -Property @{ Scope = 'Machine'; View = 'Registry64'; KeyName = 'k'; DisplayName = $DisplayName; DisplayVersion = $DisplayVersion; InstallLocation = ''; Publisher = '' }
 }
 
-# Row of Get-UserScopeInstalls.
+# Row of Get-UserScopeInstall.
 function global:New-UserInstall([string]$Source = 'Path') {
     return New-Object PSObject -Property @{ Scope = 'User'; Source = $Source; Sid = 'S-1-12-1-1-2-3-4'; Path = 'x'; DisplayVersion = '' }
 }

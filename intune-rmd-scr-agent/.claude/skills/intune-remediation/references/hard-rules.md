@@ -46,7 +46,7 @@ platform timeout is UNVERIFIED (see platform.md); 540 is the design ceiling.
 `$env:LOCALAPPDATA`, `$env:APPDATA`, `$env:USERPROFILE`, `$env:HOMEPATH`, `$env:HOMEDRIVE`
 and `$env:USERNAME` are banned. Under SYSTEM they point at the system profile, so
 per-user installs are never found. User profiles come from the ProfileList registry key
-(`Get-UserScopeInstalls`).
+(`Get-UserScopeInstall`).
 
 ## HR-07 Secure staging
 
@@ -68,7 +68,7 @@ exit 1. There is no "warn and proceed" path.
 - Detection looks at machine scope: HKLM Uninstall in both registry views, and the
   `Program Files` locations named in the decision record.
 - If the app is not installed machine-wide, look for user-scope installs with
-  `Get-UserScopeInstalls`. If only user-scope installs exist: `SKIPPED_USER_SCOPE`, exit 0.
+  `Get-UserScopeInstall`. If only user-scope installs exist: `SKIPPED_USER_SCOPE`, exit 0.
 - Remediation installs machine scope only (`--scope machine`, or the vendor's machine-wide
   installer). It never installs, updates or removes per-user copies.
 

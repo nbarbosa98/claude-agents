@@ -132,7 +132,9 @@ def main():
         check("pwsh available", False, "install PowerShell 7")
     else:
         with tempfile.TemporaryDirectory() as td:
-            files = [str(REF / "helpers.ps1")] + [str(p) for p in sorted((ROOT / "tools/tests/fixtures/packages").glob("*/*.ps1"))]
+            files = ([str(REF / "helpers.ps1")] + [str(p) for p in sorted((ROOT / "tools/tests/fixtures/packages").glob("*/*.ps1"))]
+                     + [str(p) for p in sorted((ROOT / "tools/vm/guest").glob("*.ps1"))]
+                     + [str(ROOT / "tools/pester/helpers/Helpers.Windows.Tests.ps1")])
             for t in (REF / "templates").glob("*.ps1"):
                 filled = Path(td) / t.name
                 filled.write_text(re.sub(r"__[A-Z][A-Z0-9_]*__", "x", t.read_text(encoding="ascii")), encoding="ascii")
@@ -160,11 +162,11 @@ def main():
     # 9. Helper Pester tests (--full)
     if "--full" in sys.argv and pwsh:
         cmd = ("Import-Module Pester -MinimumVersion 5.0 -MaximumVersion 5.99; $c = New-PesterConfiguration; "
-               "$c.Run.Path = 'tools/pester/helpers'; $c.Run.PassThru = $true; $c.Output.Verbosity = 'None'; "
+               "$c.Run.Path = @('tools/pester/helpers', 'tools/vm/tests'); $c.Run.PassThru = $true; $c.Output.Verbosity = 'None'; "
                "$r = Invoke-Pester -Configuration $c; '{0} {1} {2}' -f $r.PassedCount, $r.FailedCount, $r.SkippedCount; "
                "if ($r.FailedCount -gt 0) { exit 1 }")
         r = subprocess.run([pwsh, "-NoProfile", "-Command", cmd], capture_output=True, text=True, cwd=str(ROOT))
-        check("helper Pester tests (passed failed skipped: %s)" % r.stdout.strip().splitlines()[-1:] , r.returncode == 0, r.stderr[-300:])
+        check("helper + Gate 4 Pester tests (passed failed skipped: %s)" % r.stdout.strip().splitlines()[-1:] , r.returncode == 0, r.stderr[-300:])
 
     width = max(len(n) for n, _, _ in results)
     fails = 0

@@ -1,14 +1,18 @@
 {
   "_comment": "Copy to config/local.json (git-ignored) and fill in locally. Never commit real values.",
   "tenant": {
-    "allowlist": ["00000000-0000-0000-0000-000000000000"],
+    "allowlist": [
+      "00000000-0000-0000-0000-000000000000"
+    ],
     "displayNameHint": "<LAB_TENANT_NAME>"
   },
   "auth": {
     "mode": "delegated",
     "clientId": "00000000-0000-0000-0000-000000000000",
     "_clientIdNote": "Public-client app registration used for delegated sign-in. Final scopes are set in Phase 5 after verification.",
-    "scopes": ["UNVERIFIED - set in Phase 5"]
+    "scopes": [
+      "UNVERIFIED - set in Phase 5"
+    ]
   },
   "deploymentDefaults": {
     "runAsAccount": "system",
@@ -22,9 +26,14 @@
     "maxRecurredCycles": 1
   },
   "vm": {
-    "_note": "Filled in at Phase 3 once D6 is answered.",
-    "backend": "<BACKEND>",
-    "host": "<VM_HOST>",
-    "baselineSnapshot": "baseline"
+    "_note": "Gate 4 test VM (ADR-017, ADR-029). Unenrolled, x64 Windows 11 Enterprise in Azure; reverted to a baseline snapshot before every scenario.",
+    "backend": "azure",
+    "azure": {
+      "subscriptionId": "00000000-0000-0000-0000-000000000000",
+      "resourceGroup": "<RESOURCE_GROUP>",
+      "vmName": "<VM_NAME>",
+      "baselineSnapshot": "<SNAPSHOT_NAME>",
+      "diskCreateExtraArgs": []
+    }
   }
 }

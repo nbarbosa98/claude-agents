@@ -16,8 +16,8 @@ $USER_EXE_RELPATHS = @('AppData\Local\Programs\Example App\example.exe')
 $VERSION_SOURCE    = 'FileVersion'
 $WINGET_ID         = 'Example.App'
 $INCLUDE_UNKNOWN   = $false
-$WINGET_REBOOT_TO_FINISH = -1978334967
 $TIMEOUT_CATALOG   = 60
+$WINGET_REBOOT_TO_FINISH = -1978334967
 $TIMEOUT_UPGRADE   = 300
 
 # ===== Helpers (copied verbatim from references/helpers.ps1) =====
@@ -39,7 +39,8 @@ function Initialize-Log {
         Remove-Item -Force -ErrorAction SilentlyContinue
 }
 
-function Write-Log {
+function Write-RemediationLog {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingEmptyCatchBlock', '', Justification = 'Logging must never fail the run; the status line is the contract.')]
     param(
         [Parameter(Mandatory = $true)][AllowEmptyString()][string]$Message,
         [ValidateSet('INFO', 'WARN', 'ERROR')][string]$Level = 'INFO'
@@ -63,7 +64,7 @@ function Exit-WithCode {
     }
     $line = $sb.ToString()
     if ($line.Length -gt 512) { $line = $line.Substring(0, 509) + '...' }
-    Write-Log -Message ('STATUS exit={0} {1}' -f $Code, $line)
+    Write-RemediationLog -Message ('STATUS exit={0} {1}' -f $Code, $line)
     Write-Host $line
     exit $Code
 }
@@ -96,7 +97,7 @@ function Invoke-ProcessWithTimeout {
             $result.ExitCode = $p.ExitCode
         } else {
             $result.TimedOut = $true
-            Write-Log -Level 'WARN' -Message ('Timeout after {0}s: {1}. Killing process tree.' -f $TimeoutSeconds, $FilePath)
+            Write-RemediationLog -Level 'WARN' -Message ('Timeout after {0}s: {1}. Killing process tree.' -f $TimeoutSeconds, $FilePath)
             $tk = Join-Path $env:SystemRoot 'System32\taskkill.exe'
             $k = Start-Process -FilePath $tk -ArgumentList @('/PID', $p.Id, '/T', '/F') -PassThru -NoNewWindow
             $null = $k.WaitForExit(15000)
@@ -137,7 +138,7 @@ function Get-FileVersionSafe {
     } catch { return $null }
 }
 
-function Get-MachineInstalls {
+function Get-MachineInstall {
     # HKLM Uninstall in BOTH registry views (64-bit and WOW6432Node).
     param([Parameter(Mandatory = $true)][string]$DisplayNamePattern)
     $found = New-Object System.Collections.ArrayList
@@ -173,11 +174,11 @@ function Get-MachineInstalls {
         }
     }
     # Emit items one by one (callers wrap the call in @()). 'return , $array' would make
-    # @(Get-MachineInstalls ...) a one-element array even when nothing was found.
+    # @(Get-MachineInstall ...) a one-element array even when nothing was found.
     return $found.ToArray()
 }
 
-function Get-UserScopeInstalls {
+function Get-UserScopeInstall {
     # Profile paths come from ProfileList (not C:\Users guessing, not $env vars,
     # which point at the SYSTEM profile under SYSTEM - HR-06).
     # HKU: loaded hives only (signed-in users). NTUSER.DAT of signed-out users is
@@ -224,7 +225,7 @@ function Get-InstalledAppVersion {
         [string[]]$UserExeRelPaths = @(),
         [Parameter(Mandatory = $true)][ValidateSet('FileVersion', 'DisplayVersion')][string]$VersionSource
     )
-    $machine = @(Get-MachineInstalls -DisplayNamePattern $DisplayNamePattern)
+    $machine = @(Get-MachineInstall -DisplayNamePattern $DisplayNamePattern)
     $exeFound = $false
     $installed = $null
     foreach ($p in $MainExePaths) {
@@ -242,7 +243,7 @@ function Get-InstalledAppVersion {
     }
     $r = New-Object PSObject -Property @{ Status = ''; Version = $installed; UserCount = 0 }
     if ($machine.Count -eq 0 -and -not $exeFound) {
-        $user = @(Get-UserScopeInstalls -DisplayNamePattern $DisplayNamePattern -RelativeExePaths $UserExeRelPaths)
+        $user = @(Get-UserScopeInstall -DisplayNamePattern $DisplayNamePattern -RelativeExePaths $UserExeRelPaths)
         $r.UserCount = $user.Count
         if ($user.Count -gt 0) { $r.Status = 'UserOnly' } else { $r.Status = 'Absent' }
         return $r
@@ -283,7 +284,7 @@ function Invoke-Winget {
         $wgArgs = @('upgrade') + $common + @('--scope', 'machine', '--silent', '--accept-package-agreements')
         if ($IncludeUnknown) { $wgArgs += '--include-unknown' }
     }
-    Write-Log -Message ('winget {0}' -f ($wgArgs -join ' '))
+    Write-RemediationLog -Message ('winget {0}' -f ($wgArgs -join ' '))
     return Invoke-ProcessWithTimeout -FilePath $WingetPath -ArgumentList $wgArgs -TimeoutSeconds $TimeoutSeconds -CaptureOutput
 }
 
@@ -298,7 +299,7 @@ function Get-WingetCatalogVersion {
     )
     $r = Invoke-Winget -WingetPath $WingetPath -Operation 'show-versions' -PackageId $PackageId -TimeoutSeconds $TimeoutSeconds
     if ($r.TimedOut -or $r.ExitCode -ne 0) {
-        Write-Log -Level 'WARN' -Message ('winget show failed: exit={0} timedOut={1}' -f $r.ExitCode, $r.TimedOut)
+        Write-RemediationLog -Level 'WARN' -Message ('winget show failed: exit={0} timedOut={1}' -f $r.ExitCode, $r.TimedOut)
         return $null
     }
     $max = $null
@@ -313,16 +314,17 @@ function Get-WingetCatalogVersion {
 }
 
 function Remove-SecureStagingDir {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Unattended SYSTEM script: no interactive caller, -WhatIf/-Confirm have no meaning.')]
     param([AllowNull()][AllowEmptyString()][string]$Path)
     if (-not $Path) { return }
     $root = Join-Path $env:ProgramData 'IntuneRemediation\Staging'
     if (-not $Path.StartsWith($root + '\', [System.StringComparison]::OrdinalIgnoreCase)) {
-        Write-Log -Level 'ERROR' -Message ('Refusing to delete outside staging root: ' + $Path)
+        Write-RemediationLog -Level 'ERROR' -Message ('Refusing to delete outside staging root: ' + $Path)
         return
     }
     if (Test-Path -LiteralPath $Path) {
         Remove-Item -LiteralPath $Path -Recurse -Force -ErrorAction SilentlyContinue
-        if (Test-Path -LiteralPath $Path) { Write-Log -Level 'WARN' -Message ('Staging dir not fully removed: ' + $Path) }
+        if (Test-Path -LiteralPath $Path) { Write-RemediationLog -Level 'WARN' -Message ('Staging dir not fully removed: ' + $Path) }
     }
 }
 
@@ -330,11 +332,11 @@ function Remove-SecureStagingDir {
 $stagingDir = $null
 try {
     Initialize-Log -PackageId $PACKAGE_ID -Role 'remediate'
-    Write-Log -Message ('Start remediate. PS {0}, 64-bit process: {1}' -f $PSVersionTable.PSVersion, [Environment]::Is64BitProcess)
+    Write-RemediationLog -Message ('Start remediate. PS {0}, 64-bit process: {1}' -f $PSVersionTable.PSVersion, [Environment]::Is64BitProcess)
 
     # HR-19: re-check state first; exit with the compliant token if nothing to do.
     $app = Get-InstalledAppVersion -DisplayNamePattern $DISPLAY_NAME_LIKE -MainExePaths $MAIN_EXE_PATHS -UserExeRelPaths $USER_EXE_RELPATHS -VersionSource $VERSION_SOURCE
-    Write-Log -Message ('Install status {0}, version {1}' -f $app.Status, $app.Version)
+    Write-RemediationLog -Message ('Install status {0}, version {1}' -f $app.Status, $app.Version)
     if ($app.Status -eq 'UserOnly') {
         Exit-WithCode -Token 'SKIPPED_USER_SCOPE' -Message ('{0} found in user scope only. Skipped' -f $SUBJECT) -Code 0
     }
@@ -353,7 +355,7 @@ try {
         Exit-WithCode -Token 'UP_TO_DATE' -Message ('{0} {1} is up to date' -f $SUBJECT, $app.Version) -Code 0
     }
     $r = Invoke-Winget -WingetPath $winget -Operation 'upgrade' -PackageId $WINGET_ID -TimeoutSeconds $TIMEOUT_UPGRADE -IncludeUnknown:$INCLUDE_UNKNOWN
-    Write-Log -Message ('winget upgrade exit={0} timedOut={1}' -f $r.ExitCode, $r.TimedOut)
+    Write-RemediationLog -Message ('winget upgrade exit={0} timedOut={1}' -f $r.ExitCode, $r.TimedOut)
     $after = Get-InstalledAppVersion -DisplayNamePattern $DISPLAY_NAME_LIKE -MainExePaths $MAIN_EXE_PATHS -UserExeRelPaths $USER_EXE_RELPATHS -VersionSource $VERSION_SOURCE
     if ($after.Status -eq 'Machine' -and $after.Version -ge $target) {
         Exit-WithCode -Token 'REMEDIATED' -Message ('{0} updated to {1}' -f $SUBJECT, $after.Version) -Code 0
@@ -369,7 +371,7 @@ try {
 catch {
     if ($_.Exception.Message -like 'ExitCalled:*') { throw }
     $reason = (($_.Exception.Message -replace '[\r\n]+', ' ') -replace '[^\x20-\x7E]', '?')
-    Write-Log -Level 'ERROR' -Message ('Unhandled: ' + $reason)
+    Write-RemediationLog -Level 'ERROR' -Message ('Unhandled: ' + $reason)
     Write-Host ('ERROR | {0} script error: {1}' -f $SUBJECT, $reason)
     exit 1
 }

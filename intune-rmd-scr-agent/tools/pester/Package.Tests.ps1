@@ -7,7 +7,7 @@ Invoked by tools/pester/Invoke-Gate2.ps1 through a Pester container with data:
 How a scenario runs:
   1. The script is parsed (never executed as a file). All top-level statements except the
      final try (constants and helper functions) are dot-sourced into the test scope.
-  2. Default mocks: Initialize-Log, Write-Log, Remove-SecureStagingDir, Write-Host, and
+  2. Default mocks: Initialize-Log, Write-RemediationLog, Remove-SecureStagingDir, Write-Host, and
      Exit-WithCode -> throw "ExitCalled:<code>" (tools/pester/README.md).
   3. Scenario Setup runs, then scenario Mocks are applied.
   4. The main try/catch/finally runs, with any raw 'exit N' in the outer catch rewritten to
@@ -61,7 +61,7 @@ Describe 'Gate 2 package scenarios' {
 
         $global:G2 = @{}
         Mock Initialize-Log { }
-        Mock Write-Log { }
+        Mock Write-RemediationLog { }
         if (Get-Command Remove-SecureStagingDir -ErrorAction SilentlyContinue) { Mock Remove-SecureStagingDir { } }
         Mock Write-Host { $global:G2.host = "$Object" }
         Mock Exit-WithCode { throw ('ExitCalled:{0}' -f $Code) }

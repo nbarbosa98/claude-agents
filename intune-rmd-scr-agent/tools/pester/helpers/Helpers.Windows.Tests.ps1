@@ -5,12 +5,19 @@ These create and delete only paths under C:\ProgramData\IntuneRemediation\Stagin
 under $TestDrive.
 #>
 BeforeAll {
-    $root = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
-    . (Join-Path $root '.claude/skills/intune-remediation/references/helpers.ps1')
-    if ($IsWindows) { Mock Write-Log { } }
+    # In the Gate 4 VM the payload puts helpers.ps1 next to this file; in the repo it lives
+    # under the skill references.
+    $local = Join-Path $PSScriptRoot 'helpers.ps1'
+    if (Test-Path -LiteralPath $local) { . $local }
+    else {
+        $root = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
+        . (Join-Path $root '.claude/skills/intune-remediation/references/helpers.ps1')
+    }
+    if ([System.Environment]::OSVersion.Platform -eq 'Win32NT') { Mock Write-RemediationLog { } }
 }
 
-Describe 'Windows helpers' -Tag 'Windows' -Skip:(-not $IsWindows) {
+# $IsWindows does not exist in Windows PowerShell 5.1 (the VM runs these tests there).
+Describe 'Windows helpers' -Tag 'Windows' -Skip:([System.Environment]::OSVersion.Platform -ne 'Win32NT') {
     Context 'New-SecureStagingDir / Remove-SecureStagingDir' {
         It 'creates a dir with inheritance off and only SYSTEM and Administrators' {
             $d = New-SecureStagingDir -PackageId 'test-pkg'
@@ -53,10 +60,10 @@ Describe 'Windows helpers' -Tag 'Windows' -Skip:(-not $IsWindows) {
     }
     Context 'Registry discovery' {
         It 'reads both HKLM Uninstall views without error' {
-            { Get-MachineInstalls -DisplayNamePattern '*' } | Should -Not -Throw
+            { Get-MachineInstall -DisplayNamePattern '*' } | Should -Not -Throw
         }
         It 'lists user-scope installs without loading hives' {
-            { Get-UserScopeInstalls -DisplayNamePattern 'NoSuchApp*' -RelativeExePaths @('AppData\Local\NoSuchApp\x.exe') } | Should -Not -Throw
+            { Get-UserScopeInstall -DisplayNamePattern 'NoSuchApp*' -RelativeExePaths @('AppData\Local\NoSuchApp\x.exe') } | Should -Not -Throw
         }
     }
 }

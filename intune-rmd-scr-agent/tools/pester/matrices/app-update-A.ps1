@@ -13,6 +13,13 @@
        Mocks = @{ 'Get-InstalledAppVersion' = { New-AppState 'UserOnly' '' } } }
     @{ Name = 'installed version unreadable'; Role = 'detect'; ExpectToken = 'NOT_DETERMINED'; ExpectCode = 0
        Mocks = @{ 'Get-InstalledAppVersion' = { New-AppState 'Unreadable' '' } } }
+    @{ Name = 'unknown version with INCLUDE_UNKNOWN is outdated'; Role = 'detect'; ExpectToken = 'OUTDATED'; ExpectCode = 1
+       Setup = { $INCLUDE_UNKNOWN = $true }
+       Mocks = @{
+           'Get-InstalledAppVersion'  = { New-AppState 'Unreadable' '' }
+           'Get-WingetPath'           = { 'C:\wa\winget.exe' }
+           'Get-WingetCatalogVersion' = { [version]'2.0.0.0' }
+       } }
     @{ Name = 'winget missing fails open'; Role = 'detect'; ExpectToken = 'NOT_DETERMINED'; ExpectCode = 0
        Mocks = @{ 'Get-InstalledAppVersion' = { New-AppState 'Machine' '1.0.0.0' }; 'Get-WingetPath' = { $null } } }
     @{ Name = 'winget hang: catalog lookup times out'; Role = 'detect'; ExpectToken = 'NOT_DETERMINED'; ExpectCode = 0

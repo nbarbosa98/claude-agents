@@ -16,8 +16,8 @@ docs are read from their source repositories (ADR-010).
 | `Get-FileHash -LiteralPath -Algorithm SHA256` | helpers.ps1 | MicrosoftDocs/PowerShell-Docs `reference/5.1/Microsoft.PowerShell.Utility/Get-FileHash.md` |
 | `Set-Acl` with `SetAccessRuleProtection` | helpers.ps1 `Set-TrustedAcl` | MicrosoftDocs/PowerShell-Docs `reference/5.1/Microsoft.PowerShell.Security/Set-Acl.md` |
 | `Start-Process -NoNewWindow -PassThru -RedirectStandardOutput -ArgumentList` | helpers.ps1 | MicrosoftDocs/PowerShell-Docs `reference/5.1/Microsoft.PowerShell.Management/Start-Process.md` |
-| HKLM `...\CurrentVersion\Uninstall` holds `DisplayVersion` | helpers.ps1 `Get-MachineInstalls` | MicrosoftDocs/win32 `desktop-src/Msi/uninstall-registry-key.md` (branch docs) |
-| `RegistryView.Registry32` / `Registry64` | helpers.ps1 `Get-MachineInstalls` | dotnet/dotnet-api-docs `xml/Microsoft.Win32/RegistryView.xml` |
+| HKLM `...\CurrentVersion\Uninstall` holds `DisplayVersion` | helpers.ps1 `Get-MachineInstall` | MicrosoftDocs/win32 `desktop-src/Msi/uninstall-registry-key.md` (branch docs) |
+| `RegistryView.Registry32` / `Registry64` | helpers.ps1 `Get-MachineInstall` | dotnet/dotnet-api-docs `xml/Microsoft.Win32/RegistryView.xml` |
 | winget-pkgs manifest path layout and installer field names (schema 1.12.0) | tools/classify/winget_manifest_lookup.py | microsoft/winget-pkgs `doc/manifest/schema/1.12.0/installer.md`; nested folders for multi-dot ids observed live (ADR-025) |
 | PSScriptAnalyzer rule names, `PSUseCompatibleSyntax` / `PSUseCompatibleCommands` settings and the 5.1 profile name | tools/lint/PSScriptAnalyzerSettings.psd1 | MicrosoftDocs/PowerShell-Docs-Modules `reference/docs-conceptual/PSScriptAnalyzer/Rules/*.md` |
 
@@ -31,6 +31,6 @@ docs are read from their source repositories (ADR-010).
 | `winget show --versions` prints one bare version per line in every UI language | `Get-WingetCatalogVersion` | Phase 3, plus a non-English image if available |
 | `Start-Process -PassThru` needs `$p.Handle` touched for `ExitCode` on 5.1 | `Invoke-ProcessWithTimeout` | Phase 3 |
 | `exit` inside `try` runs `finally` on 5.1 (observed on PowerShell 7) | skeleton | Phase 3 |
-| Entra ID user SIDs start with `S-1-12-1-` | `Get-UserScopeInstalls` | Phase 3 with an Entra user profile |
+| Entra ID user SIDs start with `S-1-12-1-` | `Get-UserScopeInstall` | Phase 3 with an Entra user profile |
 | Browser "staged update" indicators per vendor | type-app-update.md | Per package, with evidence, lab-verified |
 | "Collect diagnostics" includes IME Logs custom files | D3 | Phase 5 |

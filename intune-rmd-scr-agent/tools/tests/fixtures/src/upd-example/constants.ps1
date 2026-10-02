@@ -4,6 +4,4 @@ $USER_EXE_RELPATHS = @('AppData\Local\Programs\Example App\example.exe')
 $VERSION_SOURCE    = 'FileVersion'
 $WINGET_ID         = 'Example.App'
 $INCLUDE_UNKNOWN   = $false
-$WINGET_REBOOT_TO_FINISH = -1978334967
 $TIMEOUT_CATALOG   = 60
-$TIMEOUT_UPGRADE   = 300

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Compose the Gate 1/2 test fixture packages from tools/tests/fixtures/src/.
 
-Each src/<package-id>/ holds meta.json, constants.ps1, detect.body.ps1,
+Each src/<package-id>/ holds meta.json, constants.ps1 (shared), optional
+<role>.constants.ps1 (one role only), detect.body.ps1,
 [remediate.body.ps1], README.md and decision-record.json. The composer fills the
 skeleton templates, copies the helpers each script needs (transitively) verbatim from
 references/helpers.ps1 in canonical order, and writes tools/tests/fixtures/packages/<id>/.
@@ -22,8 +23,8 @@ REF = ROOT / ".claude" / "skills" / "intune-remediation" / "references"
 SRC = Path(__file__).resolve().parent / "src"
 OUT = Path(__file__).resolve().parent / "packages"
 FACTS = ROOT / "tools" / "lint" / "Get-ScriptFacts.ps1"
-ALWAYS = {"detect": ["Initialize-Log", "Write-Log", "Exit-WithCode"],
-          "remediate": ["Initialize-Log", "Write-Log", "Exit-WithCode", "Remove-SecureStagingDir"]}
+ALWAYS = {"detect": ["Initialize-Log", "Write-RemediationLog", "Exit-WithCode"],
+          "remediate": ["Initialize-Log", "Write-RemediationLog", "Exit-WithCode", "Remove-SecureStagingDir"]}
 
 
 def helper_functions():
@@ -50,6 +51,9 @@ def used_helpers(text, helpers, always):
 def compose(pkg_dir, role, helpers, contract_version):
     meta = json.loads((pkg_dir / "meta.json").read_text(encoding="ascii"))
     consts = (pkg_dir / "constants.ps1").read_text(encoding="ascii").rstrip("\n")
+    role_consts = pkg_dir / ("%s.constants.ps1" % role)
+    if role_consts.exists():
+        consts += "\n" + role_consts.read_text(encoding="ascii").rstrip("\n")
     body = (pkg_dir / ("%s.body.ps1" % role)).read_text(encoding="ascii").rstrip("\n")
     tpl = (REF / "templates" / ("%s.skeleton.ps1" % role)).read_text(encoding="ascii")
     hs = used_helpers(consts + "\n" + body, helpers, ALWAYS[role])
@@ -82,6 +86,8 @@ def build():
                 files["%s.ps1" % role] = compose(pkg, role, helpers, cv)
         for f in ("README.md", "decision-record.json"):
             files[f] = (pkg / f).read_text(encoding="ascii")
+        if (pkg / "gate4.json").exists():
+            files["gate4.json"] = (pkg / "gate4.json").read_text(encoding="ascii")
         result[pkg.name] = files
     return result
 

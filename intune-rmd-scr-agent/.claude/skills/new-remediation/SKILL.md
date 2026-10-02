@@ -17,7 +17,8 @@ Run the orchestrator workflow from your agent instructions:
    - Gate 1: `python3 tools/lint/lint.py packages/<id> --out out/<id>/gate1.json`
    - Gate 2: `pwsh -NoProfile -File tools/pester/Invoke-Gate2.ps1 -PackagePath packages/<id> -OutFile out/<id>/gate2.json`
    - Gate 3: the `reviewer` subagent.
-   - Gate 4: not built yet (Phase 3): record `NOT_RUN`.
-   `PASS_PENDING_PSSA`, `PASS_PENDING_WINDOWS` and `NOT_RUN` are recorded as such and are not
+   - Gate 4 (from the Mac, needs the Azure lab VM): `pwsh -NoProfile -File tools/vm/Invoke-VmGate.ps1 -PackagePath packages/<id> -IncludeWindowsTests`
+     (needs `packages/<id>/gate4.json`; see tools/vm/README.md). Without the VM, record `NOT_RUN`.
+   `PASS_PENDING_PSSA`, `PASS_PENDING_WINDOWS`, `INCOMPLETE` and `NOT_RUN` are recorded as such and are not
    deliverable for /deploy.
 6. Deliver the package summary.

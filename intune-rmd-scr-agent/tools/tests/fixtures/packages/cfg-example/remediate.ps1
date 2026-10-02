@@ -35,7 +35,8 @@ function Initialize-Log {
         Remove-Item -Force -ErrorAction SilentlyContinue
 }
 
-function Write-Log {
+function Write-RemediationLog {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingEmptyCatchBlock', '', Justification = 'Logging must never fail the run; the status line is the contract.')]
     param(
         [Parameter(Mandatory = $true)][AllowEmptyString()][string]$Message,
         [ValidateSet('INFO', 'WARN', 'ERROR')][string]$Level = 'INFO'
@@ -59,22 +60,23 @@ function Exit-WithCode {
     }
     $line = $sb.ToString()
     if ($line.Length -gt 512) { $line = $line.Substring(0, 509) + '...' }
-    Write-Log -Message ('STATUS exit={0} {1}' -f $Code, $line)
+    Write-RemediationLog -Message ('STATUS exit={0} {1}' -f $Code, $line)
     Write-Host $line
     exit $Code
 }
 
 function Remove-SecureStagingDir {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Unattended SYSTEM script: no interactive caller, -WhatIf/-Confirm have no meaning.')]
     param([AllowNull()][AllowEmptyString()][string]$Path)
     if (-not $Path) { return }
     $root = Join-Path $env:ProgramData 'IntuneRemediation\Staging'
     if (-not $Path.StartsWith($root + '\', [System.StringComparison]::OrdinalIgnoreCase)) {
-        Write-Log -Level 'ERROR' -Message ('Refusing to delete outside staging root: ' + $Path)
+        Write-RemediationLog -Level 'ERROR' -Message ('Refusing to delete outside staging root: ' + $Path)
         return
     }
     if (Test-Path -LiteralPath $Path) {
         Remove-Item -LiteralPath $Path -Recurse -Force -ErrorAction SilentlyContinue
-        if (Test-Path -LiteralPath $Path) { Write-Log -Level 'WARN' -Message ('Staging dir not fully removed: ' + $Path) }
+        if (Test-Path -LiteralPath $Path) { Write-RemediationLog -Level 'WARN' -Message ('Staging dir not fully removed: ' + $Path) }
     }
 }
 
@@ -99,13 +101,14 @@ function Test-DesiredStateEntry {
 
 function Set-DesiredStateEntry {
     # Logs the prior value first (rollback data), then applies.
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Unattended SYSTEM script: no interactive caller, -WhatIf/-Confirm have no meaning.')]
     param([Parameter(Mandatory = $true)][hashtable]$Entry)
     switch ($Entry.Kind) {
         'Registry' {
             $prior = Get-ItemProperty -LiteralPath $Entry.Path -Name $Entry.Name -ErrorAction SilentlyContinue
             $pv = '<absent>'
             if ($null -ne $prior) { $pv = [string]$prior.($Entry.Name) }
-            Write-Log -Message ('ROLLBACK Registry {0}\{1} prior={2}' -f $Entry.Path, $Entry.Name, $pv)
+            Write-RemediationLog -Message ('ROLLBACK Registry {0}\{1} prior={2}' -f $Entry.Path, $Entry.Name, $pv)
             if (-not (Test-Path -LiteralPath $Entry.Path)) { $null = New-Item -Path $Entry.Path -Force }
             $null = New-ItemProperty -LiteralPath $Entry.Path -Name $Entry.Name -PropertyType $Entry.Type -Value $Entry.Value -Force
         }
@@ -113,7 +116,7 @@ function Set-DesiredStateEntry {
             $svc = Get-Service -Name $Entry.Name -ErrorAction SilentlyContinue
             if ($null -eq $svc) { return }
             $prior = (Get-ItemProperty -LiteralPath ('HKLM:\SYSTEM\CurrentControlSet\Services\' + $Entry.Name) -Name Start -ErrorAction SilentlyContinue).Start
-            Write-Log -Message ('ROLLBACK Service {0} priorStart={1}' -f $Entry.Name, $prior)
+            Write-RemediationLog -Message ('ROLLBACK Service {0} priorStart={1}' -f $Entry.Name, $prior)
             Set-Service -Name $Entry.Name -StartupType $Entry.StartType
             if ($Entry.StartType -eq 'Disabled' -and $svc.Status -eq 'Running' -and $Entry.StopIfRunning) {
                 Stop-Service -Name $Entry.Name -Force -ErrorAction Stop
@@ -127,7 +130,7 @@ function Set-DesiredStateEntry {
 $stagingDir = $null
 try {
     Initialize-Log -PackageId $PACKAGE_ID -Role 'remediate'
-    Write-Log -Message ('Start remediate. PS {0}, 64-bit process: {1}' -f $PSVersionTable.PSVersion, [Environment]::Is64BitProcess)
+    Write-RemediationLog -Message ('Start remediate. PS {0}, 64-bit process: {1}' -f $PSVersionTable.PSVersion, [Environment]::Is64BitProcess)
 
     # HR-19: re-check state first; exit with the compliant token if nothing to do.
     $failing = @($DESIRED | Where-Object { -not (Test-DesiredStateEntry -Entry $_) })
@@ -149,7 +152,7 @@ try {
 catch {
     if ($_.Exception.Message -like 'ExitCalled:*') { throw }
     $reason = (($_.Exception.Message -replace '[\r\n]+', ' ') -replace '[^\x20-\x7E]', '?')
-    Write-Log -Level 'ERROR' -Message ('Unhandled: ' + $reason)
+    Write-RemediationLog -Level 'ERROR' -Message ('Unhandled: ' + $reason)
     Write-Host ('ERROR | {0} script error: {1}' -f $SUBJECT, $reason)
     exit 1
 }

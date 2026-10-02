@@ -238,7 +238,10 @@ not objected, can be revisited), `PROPOSED` (awaiting owner), `OPEN`.
   would also receive real policies during tests, which contaminates Gate 4 results.
 - **Why x64:** on Apple-silicon Macs, local hypervisors run Windows 11 on ARM64. There,
   installer selection and emulation differ from an x64 fleet.
-- **Status:** PROPOSED (backend choice pending; see chat).
+- **Backend (owner, Phase 3):** Azure. The owner's Mac is Apple silicon (local VMs would be
+  ARM64) and the owner has an Azure subscription. The Gate 4 VM is an x64 Windows 11
+  Enterprise VM in Azure; the owner creates it later (tools/vm/README.md).
+- **Status:** ACCEPTED.
 
 ## ADR-018 Temp files for captured process output
 
@@ -388,12 +391,62 @@ not objected, can be revisited), `PROPOSED` (awaiting owner), `OPEN`.
    so the helper section contains only functions. Classification: cosmetic.
 - **Status:** ACCEPTED (defect fixes; reported in the Phase 2 report).
 
+## ADR-029 Gate 4 design
+
+- **Transport:** Azure Run Command (`RunPowerShellScript`), driven by the Azure CLI from the
+  operator's Mac. Verified: runs as System, one script at a time, at most 90 minutes, output
+  limited to the last 4,096 bytes (MicrosoftDocs/azure-compute-docs
+  `articles/virtual-machines/windows/run-command.md`). Hence a small guest agent
+  (`GateGuest.ps1`) that returns base64 JSON in chunks, and chunked uploads of a zipped
+  payload (parameter size limits are not documented: UNVERIFIED).
+- **Execution fidelity:** each script runs from a one-shot scheduled task as SYSTEM in 64-bit
+  `powershell.exe -ExecutionPolicy Bypass -File` (Bypass verified for unsigned Remediations),
+  with a hard kill at 600 s. Identity, bitness and PowerShell version are recorded and
+  asserted for every run.
+- **Revert:** snapshot -> new managed disk -> `az vm stop` -> `az vm update --os-disk` ->
+  `az vm start` -> wait for the VM agent. Verified in the same docs repo
+  (`linux/os-disk-swap.md`, `scripts/create-managed-disk-from-snapshot.md`). Only disks the
+  harness created (tag `intune-rmd-gate4=temp`) are deleted.
+- **Safety:** the Azure backend refuses to run unless the signed-in subscription equals
+  `config/local.json` `vm.azure.subscriptionId`; results never contain subscription,
+  resource or tenant IDs.
+- **Tampered installer** without a test hook in production code: the host stages a copy of
+  `remediate.ps1` with `$EXPECTED_SIGNER_O` replaced. The real script is uploaded unchanged
+  (asserted by a test).
+- **Never over-report:** a scenario that cannot run (no user profile, no Pester 5) is
+  `NOT_RUN` and the gate `INCOMPLETE`; a backend without revert (local) is `INCOMPLETE`.
+- **Deviation from the original spec:** scripts are delivered as UTF-8 without BOM, not
+  Windows-1252 (ADR-013; ASCII makes them byte-identical). The original "measure the platform
+  timeout and IME PowerShell version" cannot be done with a scheduled task; it moves to a
+  diagnostic package in the Phase 5 pilot ring.
+- **Status:** PROPOSED.
+
+## ADR-030 PSScriptAnalyzer from source; helper renames
+
+- **PSScriptAnalyzer:** the PowerShell Gallery is blocked in the cloud build environment, so
+  version 1.25.0 was built from github.com/PowerShell/PSScriptAnalyzer (commit 411c3d0) with
+  NuGet packages from nuget.org (`tools/setup/install-psscriptanalyzer-from-source.sh`). On
+  the Mac, `Install-Module PSScriptAnalyzer` is the normal route (PSScriptAnalyzer README).
+- **Findings acted on (Gate 1 now runs with zero PSSA findings on all fixtures):**
+  - `Write-Log` is a built-in cmdlet name in some PowerShell editions
+    (PSAvoidOverwritingBuiltInCmdlets): renamed `Write-RemediationLog`. Best practice.
+  - Plural nouns (PSUseSingularNouns): `Get-MachineInstalls` -> `Get-MachineInstall`,
+    `Get-UserScopeInstalls` -> `Get-UserScopeInstall`. Cosmetic.
+  - Unused constants per role (PSUseDeclaredVarsMoreThanAssignments): fixtures now declare
+    role-specific constants in `<role>.constants.ps1`; Pattern A detection now actually
+    implements `$INCLUDE_UNKNOWN` (unknown version treated as outdated), which it had
+    declared but ignored. Root-cause fix.
+  - Deliberate empty catch in the logger and no ShouldProcess in unattended SYSTEM helpers:
+    suppressed per function with a written justification (`SuppressMessageAttribute`), not
+    by turning the rules off.
+- **Status:** ACCEPTED (defect fixes and renames; reported in the Phase 3 report).
+
 ## Open
 
-- **D6:** hypervisor, Mac chip (Apple silicon vs Intel), VM access method, snapshot
-  revert command, Windows edition/build/UI language. Needed before Phase 3.
-- **Network allowlist:** whether to add `learn.microsoft.com` and
-  `www.powershellgallery.com` to the build environment. Without PSGallery,
-  PSScriptAnalyzer can only run on the Mac.
+- **D6:** resolved by ADR-017 (Azure, x64). Windows build and UI language are recorded from
+  the VM by `Initialize-GateVm.ps1`; a non-English second image is still optional.
+- **Network allowlist:** `learn.microsoft.com` and `www.powershellgallery.com` remain
+  blocked in the build environment; worked around (docs source repos, PSScriptAnalyzer built
+  from source, ADR-030).
 - **Licensing (verified, for the lab):** Remediations need Windows Enterprise E3/E5
   (or other listed licenses) for device users. Source: deploy-remediations.md line 49-51.

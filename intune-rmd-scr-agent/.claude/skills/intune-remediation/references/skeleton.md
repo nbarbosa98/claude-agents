@@ -51,5 +51,5 @@ list is empty; Gate 2 found this defect in Phase 2.)
 
 - Every path through the body ends in `Exit-WithCode`. Falling off the end of the body is
   a defect (the IME would see exit 0 with empty output, which it treats as "no issue").
-- Log decisions with `Write-Log` before calling `Exit-WithCode`.
+- Log decisions with `Write-RemediationLog` before calling `Exit-WithCode`.
 - Indent bodies by 4 spaces inside `try`.

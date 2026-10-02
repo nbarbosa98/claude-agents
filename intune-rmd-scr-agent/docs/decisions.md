@@ -338,7 +338,7 @@ not objected, can be revisited), `PROPOSED` (awaiting owner), `OPEN`.
     1.11.0 does not exist in the repo).
 - **Approximation:** latest version = highest by numeric-first ordering; non-numeric
   versions produce a warning.
-- **Status:** PROPOSED (owner review in the Phase 2 report).
+- **Status:** ACCEPTED (owner, 2026-10-02).
 
 ## ADR-026 Gate 1 design
 
@@ -358,7 +358,7 @@ not objected, can be revisited), `PROPOSED` (awaiting owner), `OPEN`.
   `PSAvoidUsingWriteHost` excluded (Write-Host is the deliberate status channel). Source:
   MicrosoftDocs/PowerShell-Docs-Modules `reference/docs-conceptual/PSScriptAnalyzer/Rules/`.
   Not yet run: PowerShell Gallery is blocked in the build environment.
-- **Status:** PROPOSED.
+- **Status:** ACCEPTED (owner, 2026-10-02).
 
 ## ADR-027 Gate 2 design
 
@@ -373,7 +373,7 @@ not objected, can be revisited), `PROPOSED` (awaiting owner), `OPEN`.
   environment variables and a `C:` drive for path building only.
 - **Matrices are tests:** they are added to the `ask` list in `.claude/settings.json`, so
   edits need the owner's approval (rule: never weaken a test).
-- **Status:** PROPOSED.
+- **Status:** ACCEPTED (owner, 2026-10-02).
 
 ## ADR-028 Defects found and fixed by the Phase 2 tests
 
@@ -419,7 +419,7 @@ not objected, can be revisited), `PROPOSED` (awaiting owner), `OPEN`.
   Windows-1252 (ADR-013; ASCII makes them byte-identical). The original "measure the platform
   timeout and IME PowerShell version" cannot be done with a scheduled task; it moves to a
   diagnostic package in the Phase 5 pilot ring.
-- **Status:** PROPOSED.
+- **Status:** ACCEPTED (owner, 2026-10-02).
 
 ## ADR-030 PSScriptAnalyzer from source; helper renames
 

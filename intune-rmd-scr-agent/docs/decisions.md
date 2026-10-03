@@ -81,8 +81,8 @@ not objected, can be revisited), `PROPOSED` (awaiting owner), `OPEN`.
   **Device configurations** category of the user's Intune role. Source:
   MicrosoftDocs/memdocs `intune/device-management/tools/deploy-remediations.md`
   (commit 4b5429d), section "Permissions".
-- **UNVERIFIED:** exact delegated Graph scope names for deviceHealthScripts write,
-  run-state read and group search. Verified in Phase 5.
+- **Scopes (verified in Phase 5, ADR-035):** DeviceManagementScripts.ReadWrite.All (write),
+  DeviceManagementScripts.Read.All (read), GroupMember.Read.All (group search and counts).
 - **Where it runs:** on the operator's Mac. The cloud build container cannot reach
   `graph.microsoft.com` (network policy) and has no access to the user's sign-in.
 - **Status:** ACCEPTED (N4).
@@ -503,6 +503,83 @@ Owner decisions after the Phase 4 end-to-end run (2026-10-03). Each came from a 
    L-DECISION-CONST for the scalar app-update constants.
 - **Status:** ACCEPTED (owner, 2026-10-03; items 3 and 6 are implementation details of the
   approved fixes).
+
+## ADR-035 Phase 5: Graph deploy and promote
+
+Sources (all read at build time, 2026-10-03):
+[GD] microsoftgraph/microsoft-graph-docs-contrib @4ad99fd37a9e2e8538275a0a9cdff7907052f3ec;
+[MSAL] msal 1.39.0 and msal-extensions 1.3.1 package source (PyPI);
+[ENTRA] MicrosoftDocs/entra-docs main, `docs/identity-platform/` (retrieved 2026-10-03).
+
+**Verified facts used by the tools**
+
+| Fact | Source |
+|---|---|
+| `POST /beta/deviceManagement/deviceHealthScripts` creates, returns 201 | [GD] beta/api/intune-devices-devicehealthscript-create.md |
+| `PATCH .../deviceHealthScripts/{id}` updates, returns 200 | [GD] ...-devicehealthscript-update.md |
+| `POST .../deviceHealthScripts/{id}/assign` with `deviceHealthScriptAssignments`, returns 204 | [GD] ...-devicehealthscript-assign.md |
+| `GET` list, get, `/assignments`, `/deviceRunStates`, `/runSummary` | [GD] ...-list.md, -get.md, assignment-list.md, devicestate-list.md, runsummary-get.md |
+| Properties: displayName, description, publisher, version, detectionScriptContent and remediationScriptContent (Binary, base64), runAsAccount (`system`/`user`), enforceSignatureCheck, runAs32Bit, isGlobalScript (proprietary, read-only), lastModifiedDateTime | [GD] beta/resources/intune-devices-devicehealthscript.md |
+| Assignment: target, runRemediationScript, runSchedule; target `#microsoft.graph.groupAssignmentTarget` with groupId | [GD] ...devicehealthscriptassignment.md, intune-shared-groupassignmenttarget.md |
+| Schedules: RunOnce (date, time, useUtc), Hourly (interval), Daily (time, useUtc); interval "Valid values 1 to 23" | [GD] ...devicehealthscript{runonce,hourly,daily,run,time}schedule.md |
+| Run summary counters: noIssueDetected, issueDetected, detectionScriptError, detectionScriptPending, detectionScriptNotApplicable, issueRemediated, remediationSkipped, issueReoccurred, remediationScriptError | [GD] ...devicehealthscriptrunsummary.md |
+| Device state outputs: preRemediationDetectionScriptOutput, postRemediationDetectionScriptOutput (no remediation stdout field) | [GD] ...devicehealthscriptdevicestate.md |
+| Delegated scope for create/update/assign: **DeviceManagementScripts.ReadWrite.All**; for reads: DeviceManagementScripts.Read.All. (Not DeviceManagementConfiguration.*, as ADR-005 had assumed.) | [GD] permission tables of the files above |
+| Group search: `GET /v1.0/groups?$search="displayName:x"` needs `ConsistencyLevel: eventual`; groupTypes contains `DynamicMembership` for dynamic groups; membershipRule; securityEnabled; mailEnabled | [GD] v1.0/api/group-list.md, v1.0/resources/group.md |
+| Member counts: `/groups/{id}/members/microsoft.graph.user/$count` with `ConsistencyLevel: eventual`, text/plain body; OData cast enabled on members | [GD] v1.0/api/group-list-members.md (example 3), concepts/aad-advanced-queries.md |
+| Group scopes: GroupMember.Read.All is least privileged for members and accepted for list/get (the listed least-privileged for list/get, Group-NestingSupport.ReadWrite.All, is a write scope, so it is not used) | [GD] v1.0/includes/permissions/group-{list,get,list-members}-permissions.md |
+| `tid` in the ID token is the tenant the user signed in to | [ENTRA] id-token-claims-reference.md |
+| Clients must treat access tokens as opaque; so the tid check reads the ID token, not the access token | [ENTRA] access-tokens.md |
+| MSAL: `PublicClientApplication(client_id, authority=..., token_cache=...)`, `acquire_token_silent`, `acquire_token_interactive` (redirect URI `http://localhost`, "Mobile and Desktop application"); ID tokens cached as `IdToken` entries with `secret`, `home_account_id`, `realm` | [MSAL] msal/application.py, msal/token_cache.py |
+| msal-extensions `build_encrypted_persistence` uses the macOS Keychain on darwin | [MSAL] msal_extensions/persistence.py |
+
+**UNVERIFIED (handled defensively)**
+- Whether `assign` replaces or adds to the existing set. The tools send the full intended set
+  and verify the live set afterwards; a mismatch is reported (exit 1), not hidden.
+- Whether `GET` by id always returns script content. If not, apply reports "content not
+  verified" (exit 1) and does not record the deploy as done.
+- The `@odata.type` values are sent with a leading `#` (OData JSON convention); the docs'
+  examples use both forms.
+- `interval` for a RunOnce schedule is sent as 1.
+- The mapping of device `detectionState`/`remediationState` values to outcomes is not
+  documented, so promotion uses the documented runSummary counters instead.
+- OData query options on the Remediations list are not documented; lookup by name is
+  client-side.
+- The `microsoft.graph.device` cast on group members is inferred from "OData cast is
+  enabled"; only the user cast has a documented example.
+
+**Design (implementation choices; owner review)**
+- Python + MSAL, delegated, authority pinned to the tenant; token cache encrypted (Keychain)
+  or in memory, never a plaintext file.
+- Layout: `tools/graph/read/` (groups, scripts; ops-agent may run these), `tools/graph/plan/`
+  (plans; reads only, writes `out/deploy/`), `tools/graph/write/apply.py` (the only writer).
+- Plan = canonical JSON, sha256; the user types the first 12 hex characters (or the full
+  hash). Plans expire after 60 minutes, cannot be replayed (receipt exists), and fail if the
+  plan file, the package bytes, or the live script/assignments changed since planning.
+- The pipeline records each script's sha256 when the gates run; `status` blocks if the
+  files changed afterwards, and deploy uploads only those exact bytes.
+- Display name = package id. Version = first 12 hex of the content hash.
+- Hard rules enforced by the tool, not by config: SYSTEM, 64-bit, signature check off.
+- Updating a script that is assigned beyond the pilot stops with `UPDATE_REACHES_ALL` and
+  needs an explicit `--confirm-update-all` (recorded in the hashed plan), the same pattern
+  as the same-group rule.
+- Promotion criteria renamed to what Graph can measure: `maxRecurredCycles` became
+  `maxIssueReoccurredDevices` (runSummary.issueReoccurredDeviceCount), and
+  `maxScriptErrorDevices` was added. All absolute counts.
+- Receipts, plans, diffs and backups live in `out/deploy/<id>/` (git-ignored; they hold
+  group and script ids).
+- **Status:** PROPOSED (built and tested against a fake Graph; not yet run against a tenant).
+
+## ADR-036 Tenant id on the command line (open question)
+
+- **Problem:** the tenant-guard hook requires `--tenant <guid>` on every write command, and
+  the orchestrator may not read `config/local.json`. So the tenant GUID has to reach the model
+  in the operator's local session (the user types it, or the command shows it).
+- **Options:** (a) keep as is: the user gives the GUID in the local session; (b) accept
+  `--tenant lab` as an alias for the single allowlisted tenant, resolved inside the tools,
+  with the hook allowing that alias when the allowlist has exactly one entry. Option b
+  changes `.claude/hooks/`, so it needs owner approval.
+- **Status:** OPEN (owner decision).
 
 ## Open
 

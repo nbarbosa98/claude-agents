@@ -15,3 +15,6 @@ would remove it.
 | L8 | Lab scale | Results come from one VM and a small pilot group, not a fleet | Production rollout data (out of scope) |
 | L9 | Microsoft Graph beta endpoints for Remediations | Beta APIs can change without notice | Re-verify at Phase 5 and on every /drift run |
 | L10 | Vendors without a published hash | Trust rests on the Authenticode signer only (HR-08) | Vendor publishing hashes |
+| L11 | Plan-hash approval is typed in chat and passed to `apply.py` by the model | The model could pass a hash the user never typed; the human gate is the Claude Code permission prompt on `tools/graph/write/` plus the hash check | A TTY prompt inside `apply.py` that the user answers directly (not possible through the Bash tool today) |
+| L12 | `assign` replace-vs-merge semantics are undocumented (ADR-035) | A merge would leave stale assignments; apply detects and reports it (exit 1) but does not fix it | Observe once in the lab and record the result |
+| L13 | No automatic rollback | A failed update leaves the tenant in the receipt's recorded state; previous content is saved in `out/deploy/<id>/backup-<hash>/` | A rollback plan type built from the backup |

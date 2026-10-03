@@ -9,21 +9,23 @@
   "auth": {
     "mode": "delegated",
     "clientId": "00000000-0000-0000-0000-000000000000",
-    "_clientIdNote": "Public-client app registration used for delegated sign-in. Final scopes are set in Phase 5 after verification.",
-    "scopes": [
-      "UNVERIFIED - set in Phase 5"
-    ]
+    "_clientIdNote": "Public-client app registration in the lab tenant. Platform 'Mobile and desktop applications' with redirect URI http://localhost (MSAL interactive sign-in). Delegated permissions: DeviceManagementScripts.ReadWrite.All, DeviceManagementScripts.Read.All, GroupMember.Read.All. Scopes are fixed in tools/graph/lib/graphcore.py (ADR-035).",
+    "tokenCache": "keychain",
+    "_tokenCacheNote": "keychain = encrypted cache via msal-extensions (macOS Keychain); memory = sign in on every run. Never a plaintext file."
   },
   "deploymentDefaults": {
     "runAsAccount": "system",
     "runAs32Bit": false,
     "enforceSignatureCheck": false,
-    "publisher": "<PUBLISHER_NAME>"
+    "publisher": "<PUBLISHER_NAME>",
+    "_note": "runAsAccount, runAs32Bit and enforceSignatureCheck are fixed by the hard rules; the tools refuse other values."
   },
   "promotion": {
     "minPilotDevicesSucceeded": 3,
     "maxContractViolations": 0,
-    "maxRecurredCycles": 1
+    "maxIssueReoccurredDevices": 0,
+    "maxScriptErrorDevices": 0,
+    "_note": "Absolute device counts from the script's runSummary while only the pilot is assigned (ADR-035)."
   },
   "vm": {
     "_note": "Gate 4 test VM (ADR-017, ADR-029). Unenrolled, x64 Windows 11 Enterprise in Azure; reverted to a baseline snapshot before every scenario.",

@@ -150,7 +150,7 @@ def main():
     check("test fixtures in sync with templates and helpers", r.returncode == 0, r.stderr.strip())
 
     # 8. Python test suites (hooks and offline classifier tests always; the rest with --full)
-    suites = ["tools.tests.test_hooks", "tools.tests.test_classify.ManifestParsing",
+    suites = ["tools.tests.test_hooks", "tools.tests.test_graph", "tools.tests.test_classify.ManifestParsing",
               "tools.tests.test_classify.VendorProbe", "tools.tests.test_classify.DecisionRecord"]
     if "--full" in sys.argv:
         suites += ["tools.tests.test_lint", "tools.tests.test_gate2", "tools.tests.test_pipeline", "tools.tests.test_classify.LiveLookup"]

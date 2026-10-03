@@ -74,7 +74,9 @@ Generators write into `packages/<package-id>/`:
    scripts are never edited by hand.
 2. `README.md` with these sections, in order: `## Summary`, `## Type and pattern`,
    `## Evidence`, `## Status tokens`, `## Intune settings`, `## Time budget`,
-   `## Known failure modes`, `## Rollback`, `## UNVERIFIED items`.
+   `## Known failure modes`, `## Rollback`, `## UNVERIFIED items`. `## Time budget` contains
+   the line `Worst case (Gate 1): detect <N> s, remediate <M> s` with Gate 1's numbers
+   (L-README-BUDGET); run the gates once to learn them.
 3. `gate4.json`: the Gate 4 scenarios (tools/vm/README.md).
 4. Optional `src/tests/*.scenarios.ps1` only when a Gate 2 matrix asks for package-specific
    scenarios (audit). Never edit `tools/pester/matrices/`.

@@ -26,6 +26,8 @@ detect: AUDIT_CLEAN, AUDIT_FINDING, ERROR.
 
 ## Time budget
 
+Worst case (Gate 1): detect 0 s
+
 No external processes; no timeouts declared.
 
 ## Known failure modes

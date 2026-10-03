@@ -107,6 +107,7 @@ class Linter:
                 continue
             per_role[role] = self.check_script(f, role, type_, pattern, canon)
         self.check_cross(per_role, pattern)
+        self.check_decision_constants(per_role, dr)
         self.check_readme(type_)
         if self.use_pssa:
             self.run_pssa([self.pkg / ("%s.ps1" % r) for r in per_role])
@@ -452,6 +453,27 @@ class Linter:
             self.add("L-WINGET-PARITY", "error", "remediate.ps1", 0,
                      "$INCLUDE_UNKNOWN must be declared with the same literal in both scripts: %s" % vals)
 
+    def check_decision_constants(self, per_role, dr):
+        # Scalar app-update constants must equal the decision record, so evidence and scripts
+        # cannot drift apart (added after the upd-7zip run, ADR-034).
+        if not dr or dr.get("type") != "app-update":
+            return
+        det = dr.get("detection") or {}
+        inst = dr.get("install") or {}
+        want = {"DISPLAY_NAME_LIKE": det.get("displayNameLike"), "VERSION_SOURCE": det.get("versionSource")}
+        if dr.get("pattern") == "A":
+            want["WINGET_ID"] = inst.get("wingetId")
+            want["INCLUDE_UNKNOWN"] = inst.get("includeUnknown")
+        for role, fx in per_role.items():
+            consts = {a["name"]: a for a in fx.get("assignments", [])}
+            for name, value in want.items():
+                if value is None:
+                    continue
+                a = consts.get(name)
+                if not a or a["kind"] != "literal" or a["value"] != value:
+                    self.add("L-DECISION-CONST", "error", "%s.ps1" % role, a["line"] if a else 0,
+                             "$%s must be the literal %r from decision-record.json (found %r)" % (name, value, a["value"] if a else None))
+
     def check_readme(self, type_):
         p = self.pkg / "README.md"
         if not p.exists():
@@ -469,6 +491,18 @@ class Linter:
                 pos = i
         if any(b > 0x7F for b in p.read_bytes()):
             self.add("L-ASCII", "error", "README.md", 0, "README.md contains non-ASCII bytes (HR-01)")
+        self.check_readme_budget(text)
+
+    def check_readme_budget(self, text):
+        # The README states the worst-case time budget Gate 1 computed, in one fixed line, so
+        # it can never drift from the scripts (owner decision after the upd-7zip run, ADR-034).
+        m = re.search(r"\n## Time budget\n(.*?)(\n## |\Z)", text, re.S)
+        if not m or not self.budget:
+            return
+        want = "Worst case (Gate 1): " + ", ".join("%s %d s" % (r, self.budget[r]) for r in ("detect", "remediate") if r in self.budget)
+        if want not in m.group(1):
+            self.add("L-README-BUDGET", "error", "README.md", 0,
+                     "## Time budget must contain the line '%s' (computed by Gate 1)" % want)
 
     def run_pssa(self, files):
         r = subprocess.run([self.pwsh, "-NoProfile", "-NonInteractive", "-File", str(PSSA)] + [str(f) for f in files if f.exists()],

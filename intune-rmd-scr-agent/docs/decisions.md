@@ -482,6 +482,28 @@ not objected, can be revisited), `PROPOSED` (awaiting owner), `OPEN`.
   whatever the last scenario had uploaded).
 - **Status:** ACCEPTED (defect fix; reported in the Phase 4 report).
 
+## ADR-034 Template fixes from the first upd-7zip run
+
+Owner decisions after the Phase 4 end-to-end run (2026-10-03). Each came from a Gate 3 WARN.
+1. **Reboot before success (HR-13), root-cause fix.** Remediation checks the reboot code
+   (`$WINGET_REBOOT_TO_FINISH`, msiexec 3010) before `REMEDIATED`, even when the main exe
+   already shows the new version. Worked examples, reference text and two new Gate 2
+   scenarios enforce it.
+2. **Lowest copy counts (owner: "count as outdated"), root-cause fix.**
+   `Get-InstalledAppVersion` returns the lowest version among machine copies (x64 and x86
+   side by side). Consequence: if winget upgrades only one copy, remediation reports
+   `FAILED` until both are current; this is honest, not a false success.
+3. **Narrow display-name patterns, best practice.** `displayNameLike` must anchor on the
+   exact display-name format from evidence (for example `7-Zip [0-9]*`) so forks never match.
+4. **README budget cannot drift, best practice.** New Gate 1 rule L-README-BUDGET: the
+   README states Gate 1's worst case in a fixed line. FM-02's signature corrected.
+5. **Signer evidence for Pattern A, best practice.** Optional, recorded when available (for
+   /drift); still required for download patterns (HR-08).
+6. **Decision record and constants cannot drift, best practice.** New Gate 1 rule
+   L-DECISION-CONST for the scalar app-update constants.
+- **Status:** ACCEPTED (owner, 2026-10-03; items 3 and 6 are implementation details of the
+  approved fixes).
+
 ## Open
 
 - **D6:** resolved by ADR-017 (Azure, x64). Windows build and UI language are recorded from

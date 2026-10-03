@@ -7,7 +7,7 @@ log.
 | ID | Failure mode | Signature | Cause class | Prevention / response |
 |---|---|---|---|---|
 | FM-01 | winget not found under SYSTEM | `NOT_DETERMINED ... winget not found` | Environment | App Installer missing or not provisioned for the machine; unsupported path (ADR-016) |
-| FM-02 | winget found but fails to start under SYSTEM | `FAILED ... winget exit <code>` with no catalog output | Environment | Unsupported context (ADR-016); check App Installer version; fallback pattern B1 |
+| FM-02 | winget found but fails to start under SYSTEM | Detection: `NOT_DETERMINED ... catalog version unavailable` (winget show fails first, so remediation never runs). Remediation, if it runs: `FAILED ... winget exit <code>` | Environment | Unsupported context (ADR-016); check App Installer version; fallback pattern B1 |
 | FM-03 | Catalog version unavailable | `NOT_DETERMINED ... catalog version unavailable` | Environment | Network, source agreement, proxy; retried next schedule |
 | FM-04 | Installed version format differs from catalog format | Endless `OUTDATED` after `REMEDIATED`-looking runs ("Recurred") | Script defect | Wrong `VERSION_SOURCE` in decision record; fix and regenerate |
 | FM-05 | Per-user install only | `SKIPPED_USER_SCOPE` | Expected | D2: out of scope for v1 |

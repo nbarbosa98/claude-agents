@@ -218,6 +218,8 @@ function Get-UserScopeInstall {
 function Get-InstalledAppVersion {
     # The shared installed-version routine (HR-09, HR-12). Detect and remediate call the
     # same function, so they can never disagree about the installed version (FM-13).
+    # Version is the LOWEST version among the machine copies found (owner decision,
+    # ADR-034): an outdated second copy (for example x86 next to x64) counts as outdated.
     # Status: Machine | UserOnly | Absent | Unreadable.
     param(
         [Parameter(Mandatory = $true)][string]$DisplayNamePattern,
@@ -232,13 +234,13 @@ function Get-InstalledAppVersion {
         if (Test-Path -LiteralPath $p -PathType Leaf) { $exeFound = $true }
         if ($VersionSource -eq 'FileVersion') {
             $v = Get-FileVersionSafe -Path $p
-            if ($v -and (($null -eq $installed) -or ($v -gt $installed))) { $installed = $v }
+            if ($v -and (($null -eq $installed) -or ($v -lt $installed))) { $installed = $v }
         }
     }
     if ($null -eq $installed) {
         foreach ($m in $machine) {
             $v = ConvertTo-NormalizedVersion $m.DisplayVersion
-            if ($v -and (($null -eq $installed) -or ($v -gt $installed))) { $installed = $v }
+            if ($v -and (($null -eq $installed) -or ($v -lt $installed))) { $installed = $v }
         }
     }
     $r = New-Object PSObject -Property @{ Status = ''; Version = $installed; UserCount = 0 }
@@ -357,11 +359,13 @@ try {
     $r = Invoke-Winget -WingetPath $winget -Operation 'upgrade' -PackageId $WINGET_ID -TimeoutSeconds $TIMEOUT_UPGRADE -IncludeUnknown:$INCLUDE_UNKNOWN
     Write-RemediationLog -Message ('winget upgrade exit={0} timedOut={1}' -f $r.ExitCode, $r.TimedOut)
     $after = Get-InstalledAppVersion -DisplayNamePattern $DISPLAY_NAME_LIKE -MainExePaths $MAIN_EXE_PATHS -UserExeRelPaths $USER_EXE_RELPATHS -VersionSource $VERSION_SOURCE
-    if ($after.Status -eq 'Machine' -and $after.Version -ge $target) {
-        Exit-WithCode -Token 'REMEDIATED' -Message ('{0} updated to {1}' -f $SUBJECT, $after.Version) -Code 0
-    }
+    # HR-13: a reboot-pending update is not a verified fix, even if the main exe already
+    # shows the new version (files can still be waiting for replacement at reboot).
     if ($r.ExitCode -eq $WINGET_REBOOT_TO_FINISH) {
         Exit-WithCode -Token 'PENDING_REBOOT' -Message ('{0} change applied. Waiting for reboot' -f $SUBJECT) -Code 0
+    }
+    if ($after.Status -eq 'Machine' -and $after.Version -ge $target) {
+        Exit-WithCode -Token 'REMEDIATED' -Message ('{0} updated to {1}' -f $SUBJECT, $after.Version) -Code 0
     }
     if ($r.TimedOut) {
         Exit-WithCode -Token 'FAILED' -Message ('{0} update to {1} failed: winget timed out' -f $SUBJECT, $target) -Code 1

@@ -216,6 +216,8 @@ function Get-UserScopeInstall {
 function Get-InstalledAppVersion {
     # The shared installed-version routine (HR-09, HR-12). Detect and remediate call the
     # same function, so they can never disagree about the installed version (FM-13).
+    # Version is the LOWEST version among the machine copies found (owner decision,
+    # ADR-034): an outdated second copy (for example x86 next to x64) counts as outdated.
     # Status: Machine | UserOnly | Absent | Unreadable.
     param(
         [Parameter(Mandatory = $true)][string]$DisplayNamePattern,
@@ -230,13 +232,13 @@ function Get-InstalledAppVersion {
         if (Test-Path -LiteralPath $p -PathType Leaf) { $exeFound = $true }
         if ($VersionSource -eq 'FileVersion') {
             $v = Get-FileVersionSafe -Path $p
-            if ($v -and (($null -eq $installed) -or ($v -gt $installed))) { $installed = $v }
+            if ($v -and (($null -eq $installed) -or ($v -lt $installed))) { $installed = $v }
         }
     }
     if ($null -eq $installed) {
         foreach ($m in $machine) {
             $v = ConvertTo-NormalizedVersion $m.DisplayVersion
-            if ($v -and (($null -eq $installed) -or ($v -gt $installed))) { $installed = $v }
+            if ($v -and (($null -eq $installed) -or ($v -lt $installed))) { $installed = $v }
         }
     }
     $r = New-Object PSObject -Property @{ Status = ''; Version = $installed; UserCount = 0 }

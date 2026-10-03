@@ -119,9 +119,15 @@ Describe 'Get-InstalledAppVersion' {
         $r = Get-InstalledAppVersion -DisplayNamePattern 'X*' -MainExePaths @('p') -VersionSource 'FileVersion'
         $r.Version.ToString() | Should -Be '3.1.0.0'
     }
-    It 'takes the highest of several machine entries' {
+    It 'takes the lowest of several machine entries (an outdated second copy counts)' {
         Mock Get-MachineInstall { New-MachineInstall 'X' '3.1'; New-MachineInstall 'X' '3.10' }
-        (Get-InstalledAppVersion -DisplayNamePattern 'X*' -VersionSource 'DisplayVersion').Version.ToString() | Should -Be '3.10.0.0'
+        (Get-InstalledAppVersion -DisplayNamePattern 'X*' -VersionSource 'DisplayVersion').Version.ToString() | Should -Be '3.1.0.0'
+    }
+    It 'takes the lowest file version when x64 and x86 copies are both present' {
+        Mock Test-Path { $true }
+        Mock Get-FileVersionSafe { if ($Path -like '*x86*') { [version]'24.9.0.0' } else { [version]'26.3.0.0' } }
+        $r = Get-InstalledAppVersion -DisplayNamePattern 'X*' -MainExePaths @('C:\Program Files\X\x.exe', 'C:\Program Files (x86)\X\x.exe') -VersionSource 'FileVersion'
+        $r.Version.ToString() | Should -Be '24.9.0.0'
     }
     It 'Unreadable when installed but no version parses' {
         Mock Get-MachineInstall { New-MachineInstall 'X' 'unknown' }

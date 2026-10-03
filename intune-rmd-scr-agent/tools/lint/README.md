@@ -39,6 +39,8 @@ Rule changes need explicit owner approval (CLAUDE.md). Every rule has a mutation
 | L-AUDIT-READONLY / L-AUDIT-NOREMEDIATE | HR-16 | audit scripts change nothing and have no remediation script |
 | L-REBOOT / L-HKCU | HR-20, HR-17 | no reboots, no process kills, no forced-restart flags, no HKCU |
 | L-README | SKILL.md | README sections present and in order |
+| L-README-BUDGET | SKILL.md | `## Time budget` states Gate 1's worst case in the fixed line `Worst case (Gate 1): ...` |
+| L-DECISION-CONST | decision-record.md | app-update constants `DISPLAY_NAME_LIKE`, `VERSION_SOURCE` (and for Pattern A `WINGET_ID`, `INCLUDE_UNKNOWN`) equal the decision record |
 | L-DECISION | decision-record.md | valid decision record; stops on low confidence or open questions |
 | PSSA-* | HR-11 | PSScriptAnalyzer, 5.1 syntax and command compatibility |
 

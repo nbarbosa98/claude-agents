@@ -26,6 +26,8 @@ detect: COMPLIANT, DRIFTED, ERROR. remediate: COMPLIANT, REMEDIATED, PENDING_REB
 
 ## Time budget
 
+Worst case (Gate 1): detect 0 s, remediate 0 s
+
 No external processes; no timeouts declared.
 
 ## Known failure modes

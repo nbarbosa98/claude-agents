@@ -60,6 +60,11 @@ function Join-Mocks($a, $b) { $h = @{}; foreach ($k in $a.Keys) { $h[$k] = $a[$k
            'Get-InstalledAppVersion'   = { New-AppState 'Machine' '0.0.1.0' }
            'Invoke-ProcessWithTimeout' = { New-ProcResult 3010 }
        }) }
+    @{ Name = 'msiexec 3010 wins even when the exe already shows the new version (HR-13)'; Role = 'remediate'; ExpectToken = 'PENDING_REBOOT'; ExpectCode = 0
+       Mocks = (Join-Mocks (& $installMocks) @{
+           'Get-InstalledAppVersion'   = { if ((Step-G2Counter 'app') -eq 1) { New-AppState 'Machine' '0.0.1.0' } else { New-AppState 'Machine' '99.0.0.0' } }
+           'Invoke-ProcessWithTimeout' = { New-ProcResult 3010 }
+       }) }
     @{ Name = 'installer fails'; Role = 'remediate'; ExpectToken = 'FAILED'; ExpectCode = 1
        Mocks = (Join-Mocks (& $installMocks) @{
            'Get-InstalledAppVersion'   = { New-AppState 'Machine' '0.0.1.0' }

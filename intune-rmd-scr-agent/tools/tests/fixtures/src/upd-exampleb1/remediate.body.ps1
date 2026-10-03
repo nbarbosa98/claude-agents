@@ -21,10 +21,11 @@
     $r = Invoke-ProcessWithTimeout -FilePath $msiexec -ArgumentList @('/i', ('"{0}"' -f $msi), '/qn', '/norestart', '/l*v', ('"{0}"' -f $msiLog)) -TimeoutSeconds $TIMEOUT_INSTALL
     Write-RemediationLog -Message ('msiexec exit={0} timedOut={1}' -f $r.ExitCode, $r.TimedOut)
     $after = Get-InstalledAppVersion -DisplayNamePattern $DISPLAY_NAME_LIKE -MainExePaths $MAIN_EXE_PATHS -UserExeRelPaths $USER_EXE_RELPATHS -VersionSource $VERSION_SOURCE
-    if ($after.Status -eq 'Machine' -and $after.Version -ge $target) {
-        Exit-WithCode -Token 'REMEDIATED' -Message ('{0} updated to {1}' -f $SUBJECT, $after.Version) -Code 0
-    }
+    # HR-13: msiexec 3010 (restart required) is not a verified fix, whatever the exe shows.
     if ($r.ExitCode -eq 3010) {
         Exit-WithCode -Token 'PENDING_REBOOT' -Message ('{0} change applied. Waiting for reboot' -f $SUBJECT) -Code 0
+    }
+    if ($after.Status -eq 'Machine' -and $after.Version -ge $target) {
+        Exit-WithCode -Token 'REMEDIATED' -Message ('{0} updated to {1}' -f $SUBJECT, $after.Version) -Code 0
     }
     Exit-WithCode -Token 'FAILED' -Message ('{0} update to {1} failed: msiexec exit {2}' -f $SUBJECT, $target, $r.ExitCode) -Code 1

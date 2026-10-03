@@ -96,6 +96,13 @@
            'Get-WingetCatalogVersion' = { [version]'2.0.0.0' }
            'Invoke-Winget'            = { New-ProcResult -1978334967 }
        } }
+    @{ Name = 'reboot code wins even when the exe already shows the new version (HR-13)'; Role = 'remediate'; ExpectToken = 'PENDING_REBOOT'; ExpectCode = 0
+       Mocks = @{
+           'Get-InstalledAppVersion'  = { if ((Step-G2Counter 'app') -eq 1) { New-AppState 'Machine' '1.0.0.0' } else { New-AppState 'Machine' '2.0.0.0' } }
+           'Get-WingetPath'           = { 'C:\wa\winget.exe' }
+           'Get-WingetCatalogVersion' = { [version]'2.0.0.0' }
+           'Invoke-Winget'            = { New-ProcResult -1978334967 }
+       } }
     @{ Name = 'upgrade times out'; Role = 'remediate'; ExpectToken = 'FAILED'; ExpectCode = 1
        Mocks = @{
            'Get-InstalledAppVersion'  = { New-AppState 'Machine' '1.0.0.0' }

@@ -278,6 +278,16 @@ class Mutations(unittest.TestCase):
         self.edit(p, "README.md", "## Rollback\n", "## Undo\n")
         self.expect(p, "L-README")
 
+    def test_readme_budget_drift(self):
+        p = self.pkg("upd-example")
+        self.edit(p, "README.md", "Worst case (Gate 1): detect 75 s, remediate 390 s", "Worst case (Gate 1): detect 60 s, remediate 360 s")
+        self.expect(p, "L-README-BUDGET")
+
+    def test_constant_differs_from_decision_record(self):
+        p = self.pkg("upd-example")
+        self.edit(p, "decision-record.json", '"displayNameLike": "Example App*"', '"displayNameLike": "Example App [0-9]*"')
+        self.expect(p, "L-DECISION-CONST")
+
     def test_decision_record_mismatch(self):
         p = self.pkg("upd-example")
         self.edit(p, "decision-record.json", '"packageId": "upd-example"', '"packageId": "upd-other"')

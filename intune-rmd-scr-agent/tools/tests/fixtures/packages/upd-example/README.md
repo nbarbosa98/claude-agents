@@ -28,6 +28,8 @@ remediate: NOT_INSTALLED, SKIPPED_USER_SCOPE, UP_TO_DATE, REMEDIATED, PENDING_RE
 
 ## Time budget
 
+Worst case (Gate 1): detect 75 s, remediate 390 s
+
 detect: 60 s catalog + 15 s overhead. remediate: 60 s catalog + 300 s upgrade + 30 s overhead.
 
 ## Known failure modes

@@ -75,9 +75,11 @@ exit 0) or `OUTDATED` (exit 1). See `upd-example/detect.body.ps1`.
 After the status mapping: winget missing or catalog unavailable is `FAILED`, 1; installed
 >= target is `UP_TO_DATE`, 0 with no upgrade; otherwise
 `Invoke-Winget -Operation 'upgrade' ... -IncludeUnknown:$INCLUDE_UNKNOWN`, then call
-`Get-InstalledAppVersion` again (post-check, HR-13). Only a post-check at or above the
-target is `REMEDIATED`. `$WINGET_REBOOT_TO_FINISH` is `PENDING_REBOOT`, 0. Everything else,
-including winget exit 0 with an unchanged version, is `FAILED`, 1. See
+`Get-InstalledAppVersion` again (post-check, HR-13). Order matters: first, the reboot code
+(`$WINGET_REBOOT_TO_FINISH`; msiexec 3010 for MSI patterns) is `PENDING_REBOOT`, 0, even
+when the main exe already shows the new version, because other files can still be waiting
+for replacement at reboot. Only then is a post-check at or above the target `REMEDIATED`.
+Everything else, including winget exit 0 with an unchanged version, is `FAILED`, 1. See
 `upd-example/remediate.body.ps1`.
 
 ## Browser pattern
@@ -103,5 +105,12 @@ including winget exit 0 with an unchanged version, is `FAILED`, 1. See
 ## Evidence the decision record must hold
 
 Pattern, winget id or vendor endpoint, target version source, `VERSION_SOURCE`,
-main exe paths, expected signer CN and O, SHA256 availability, scope support, and the
-source URL for each field. See decision-record.md.
+main exe paths, SHA256 availability, scope support, and the source URL for each field.
+Expected signer CN and O: required for download patterns (Browser, B1-B3: HR-08); for
+Pattern A optional, recorded when evidence is available, so `/drift` can notice a vendor
+certificate change. See decision-record.md.
+
+`displayNameLike` must be as narrow as the evidence allows: anchor it on the exact display
+name format the installer writes (for example `7-Zip [0-9]*` for "7-Zip <version>"), so
+forks and similarly named products (for example "7-Zip ZS") never match. PowerShell `-like`
+supports character ranges such as `[0-9]`.

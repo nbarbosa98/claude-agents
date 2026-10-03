@@ -1,0 +1,43 @@
+{
+  "packageId": "upd-7zip",
+  "type": "app-update",
+  "pattern": "A",
+  "startedAt": "2026-10-03T11:50:01Z",
+  "startedEpoch": 1791028201.4680464,
+  "maxRepairs": 3,
+  "outcome": "stopped",
+  "iterations": [
+    {
+      "n": 0,
+      "startedAt": "2026-10-03T11:50:01Z",
+      "gates": {
+        "gate1": {
+          "status": "PASS",
+          "artifact": "out/upd-7zip/iter-0/gate1.json",
+          "summary": "0 error(s), 0 warning(s); budget {'detect': 75, 'remediate': 390}"
+        },
+        "gate2": {
+          "status": "PASS",
+          "artifact": "out/upd-7zip/iter-0/gate2.json",
+          "summary": "passed 20, failed 0, skipped 0, uncovered []"
+        },
+        "gate3": {
+          "status": "PASS",
+          "artifact": "out/upd-7zip/iter-0/gate3.txt",
+          "summary": "28 checks, 9 WARN"
+        },
+        "gate4": {
+          "status": "NOT_RUN",
+          "summary": "skipped: no lab VM available",
+          "artifact": null
+        }
+      },
+      "cites": [],
+      "composed": [
+        "detect.ps1",
+        "remediate.ps1"
+      ]
+    }
+  ],
+  "finishedAt": "2026-10-03T11:52:57Z"
+}

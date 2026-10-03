@@ -1,0 +1,7 @@
+{
+  "schemaVersion": "1.0.0",
+  "packageId": "upd-7zip",
+  "outdatedInstall": { "method": "winget", "id": "7zip.7zip", "version": "24.09" },
+  "versionCheck": { "path": "C:\\Program Files\\7-Zip\\7zFM.exe", "target": "catalog" },
+  "scenarios": ["main", "absent"]
+}

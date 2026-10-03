@@ -79,10 +79,16 @@
       "value": "Vendor-published SHA256: not verified (no vendor page checked). The winget manifest carries InstallerSha256 for every installer.",
       "source": "https://github.com/microsoft/winget-pkgs/blob/5805efb1ae388d417da7364a11adc0e4b6a2d9f4/manifests/7/7zip/7zip/26.03/7zip.7zip.installer.yaml",
       "retrievedAt": "2026-10-03T11:38:23Z"
+    },
+    {
+      "field": "displayNameLike",
+      "value": "7-Zip [0-9]*",
+      "source": "https://github.com/ip7z/7zip/blob/26.03/C/Util/7zipInstall/7zipInstall.c (k_7zip_with_Ver_base L\"7-Zip \" LLL(MY_VERSION), written as DisplayName) and https://github.com/ip7z/7zip/blob/26.03/DOC/7zip.wxs (Name=\"$(var.ProductName) $(var.MmVer)$(var.CpuPostfix)\", ProductName 7-Zip)",
+      "retrievedAt": "2026-10-03T12:30:00Z"
     }
   ],
   "detection": {
-    "displayNameLike": "7-Zip*",
+    "displayNameLike": "7-Zip [0-9]*",
     "mainExePaths": [
       "C:\\Program Files\\7-Zip\\7zFM.exe",
       "C:\\Program Files (x86)\\7-Zip\\7zFM.exe"
@@ -117,6 +123,11 @@
       "by": "orchestrator",
       "when": "2026-10-03",
       "checked": "7zip.7zip versions in microsoft/winget-pkgs at 5805efb1ae (git ls-tree manifests/7/7zip/7zip/): 16.04 ... 24.09 ... 26.03; 24.09 used as the Gate 4 outdated version"
+    },
+    {
+      "by": "orchestrator",
+      "when": "2026-10-03",
+      "checked": "displayNameLike narrowed from '7-Zip*' to '7-Zip [0-9]*' (ADR-034 item 3, reviewer FM-04 WARN); both installers write '7-Zip <version><suffix>'"
     }
   ]
 }

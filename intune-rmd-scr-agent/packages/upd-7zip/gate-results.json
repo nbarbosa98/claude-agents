@@ -2,29 +2,90 @@
   "packageId": "upd-7zip",
   "type": "app-update",
   "pattern": "A",
-  "startedAt": "2026-10-03T11:50:01Z",
-  "startedEpoch": 1791028201.4680464,
+  "startedAt": "2026-10-03T13:15:03Z",
+  "startedEpoch": 1791033303.4383426,
   "maxRepairs": 3,
   "outcome": "stopped",
   "iterations": [
     {
       "n": 0,
-      "startedAt": "2026-10-03T11:50:01Z",
+      "startedAt": "2026-10-03T13:15:03Z",
+      "gates": {
+        "gate1": {
+          "status": "FAIL",
+          "artifact": "out/upd-7zip/iter-0/gate1.json",
+          "summary": "3 error(s), 0 warning(s); budget {'detect': 75, 'remediate': 390}"
+        },
+        "gate2": {
+          "status": "NOT_RUN",
+          "summary": "Gate 1 did not pass"
+        },
+        "gate3": {
+          "status": "NOT_RUN"
+        },
+        "gate4": {
+          "status": "NOT_RUN"
+        }
+      },
+      "cites": [
+        "E1",
+        "E2",
+        "E3"
+      ],
+      "composed": [
+        "detect.ps1",
+        "remediate.ps1"
+      ],
+      "evidence": "out/upd-7zip/iter-0/evidence.json"
+    },
+    {
+      "n": 1,
+      "startedAt": "2026-10-03T13:17:24Z",
       "gates": {
         "gate1": {
           "status": "PASS",
-          "artifact": "out/upd-7zip/iter-0/gate1.json",
+          "artifact": "out/upd-7zip/iter-1/gate1.json",
+          "summary": "0 error(s), 0 warning(s); budget {'detect': 75, 'remediate': 390}"
+        },
+        "gate2": {
+          "status": "FAIL",
+          "artifact": "out/upd-7zip/iter-1/gate2.json",
+          "summary": "passed 20, failed 1, skipped 0, uncovered []"
+        },
+        "gate3": {
+          "status": "NOT_RUN"
+        },
+        "gate4": {
+          "status": "NOT_RUN"
+        }
+      },
+      "cites": [
+        "E1"
+      ],
+      "composed": [
+        "detect.ps1",
+        "remediate.ps1"
+      ],
+      "evidence": "out/upd-7zip/iter-1/evidence.json"
+    },
+    {
+      "n": 2,
+      "startedAt": "2026-10-03T13:18:25Z",
+      "gates": {
+        "gate1": {
+          "status": "PASS",
+          "artifact": "out/upd-7zip/iter-2/gate1.json",
           "summary": "0 error(s), 0 warning(s); budget {'detect': 75, 'remediate': 390}"
         },
         "gate2": {
           "status": "PASS",
-          "artifact": "out/upd-7zip/iter-0/gate2.json",
-          "summary": "passed 20, failed 0, skipped 0, uncovered []"
+          "artifact": "out/upd-7zip/iter-2/gate2.json",
+          "summary": "passed 21, failed 0, skipped 0, uncovered []"
         },
         "gate3": {
           "status": "PASS",
-          "artifact": "out/upd-7zip/iter-0/gate3.txt",
-          "summary": "28 checks, 9 WARN"
+          "artifact": "out/upd-7zip/iter-2/gate3.txt",
+          "summary": "39 checks, 4 WARN"
         },
         "gate4": {
           "status": "NOT_RUN",
@@ -34,10 +95,9 @@
       },
       "cites": [],
       "composed": [
-        "detect.ps1",
         "remediate.ps1"
       ]
     }
   ],
-  "finishedAt": "2026-10-03T11:52:57Z"
+  "finishedAt": "2026-10-03T13:20:39Z"
 }

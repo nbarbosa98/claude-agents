@@ -20,11 +20,11 @@
     $r = Invoke-Winget -WingetPath $winget -Operation 'upgrade' -PackageId $WINGET_ID -TimeoutSeconds $TIMEOUT_UPGRADE -IncludeUnknown:$INCLUDE_UNKNOWN
     Write-RemediationLog -Message ('winget upgrade exit={0} timedOut={1}' -f $r.ExitCode, $r.TimedOut)
     $after = Get-InstalledAppVersion -DisplayNamePattern $DISPLAY_NAME_LIKE -MainExePaths $MAIN_EXE_PATHS -UserExeRelPaths $USER_EXE_RELPATHS -VersionSource $VERSION_SOURCE
-    if ($after.Status -eq 'Machine' -and $after.Version -ge $target) {
-        Exit-WithCode -Token 'REMEDIATED' -Message ('{0} updated to {1}' -f $SUBJECT, $after.Version) -Code 0
-    }
     if ($r.ExitCode -eq $WINGET_REBOOT_TO_FINISH) {
         Exit-WithCode -Token 'PENDING_REBOOT' -Message ('{0} change applied. Waiting for reboot' -f $SUBJECT) -Code 0
+    }
+    if ($after.Status -eq 'Machine' -and $after.Version -ge $target) {
+        Exit-WithCode -Token 'REMEDIATED' -Message ('{0} updated to {1}' -f $SUBJECT, $after.Version) -Code 0
     }
     if ($r.TimedOut) {
         Exit-WithCode -Token 'FAILED' -Message ('{0} update to {1} failed: winget timed out' -f $SUBJECT, $target) -Code 1

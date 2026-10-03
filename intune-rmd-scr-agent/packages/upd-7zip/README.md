@@ -23,7 +23,7 @@ All values come from `decision-record.json`; sources are recorded there.
 |---|---|---|
 | `$WINGET_ID` | `7zip.7zip` | microsoft/winget-pkgs @5805efb1ae `manifests/7/7zip/7zip/26.03/7zip.7zip.installer.yaml` |
 | Scope | machine for all installers (exe and wix); every installer has InstallerSha256 | same manifest |
-| `$DISPLAY_NAME_LIKE` | `7-Zip*` | ip7z/7zip@26.03 `C/Util/7zipInstall/7zipInstall.c` (DisplayName '7-Zip ' + version + arch), `DOC/7zip.wxs` (Product Name '7-Zip ' + version + CPU) |
+| `$DISPLAY_NAME_LIKE` | `7-Zip [0-9]*` | ip7z/7zip@26.03 `C/Util/7zipInstall/7zipInstall.c` (DisplayName '7-Zip ' + version + arch), `DOC/7zip.wxs` (Product Name '7-Zip ' + version + CPU) |
 | `$MAIN_EXE_PATHS` | `C:\Program Files\7-Zip\7zFM.exe`, `C:\Program Files (x86)\7-Zip\7zFM.exe` | winget manifest DefaultInstallLocation; vendor installer sources (7zFM.exe) |
 | `$USER_EXE_RELPATHS` | empty | Owner approval 2026-10-03 ("Accepted"): no documented per-user install folder |
 | `$VERSION_SOURCE` | `FileVersion` | ip7z/7zip@26.03 `C/7zVersion.h`, `C/7zVersion.rc`: FILEVERSION 26,3,0,0 normalises equal to catalog '26.03' |
@@ -69,6 +69,8 @@ All values come from `decision-record.json`; sources are recorded there.
 | detect | `$TIMEOUT_CATALOG` 60 s | 60 s |
 | remediate | `$TIMEOUT_CATALOG` 60 s + `$TIMEOUT_UPGRADE` 300 s | 360 s |
 
+Worst case (Gate 1): detect 75 s, remediate 390 s
+
 Both are under the 540 s design ceiling (HR-04).
 
 ## Known failure modes
@@ -102,8 +104,9 @@ the wanted version manually (for example `winget install --id 7zip.7zip --exact 
   the loaded-hive HKU uninstall scan while that user is signed in (owner-accepted inference).
   A per-user-only copy of a signed-out user reports `NOT_INSTALLED`; nothing is changed
   either way.
-- `$DISPLAY_NAME_LIKE = '7-Zip*'` also matches any other product whose DisplayName starts with
-  "7-Zip" (for example third-party forks). If such a product is installed without `7zFM.exe`
+- `$DISPLAY_NAME_LIKE = '7-Zip [0-9]*'` (narrowed from `7-Zip*`, decision record) still matches
+  any other product whose DisplayName starts with "7-Zip " followed by a digit (for example a
+  third-party fork that copies the naming). If such a product is installed without `7zFM.exe`
   at the listed paths, `Get-InstalledAppVersion` falls back to that entry's registry
   DisplayVersion and compares it with the 7zip.7zip catalog version; not checked against
   real fork installs.

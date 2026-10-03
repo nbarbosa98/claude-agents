@@ -20,6 +20,7 @@ Exit codes: 0 ok / gate passed; 1 gate failed or not deliverable; 3 usage or inp
 4 repair budget exhausted.
 """
 import datetime
+import hashlib
 import json
 import os
 import re
@@ -120,6 +121,7 @@ class Pipeline:
         it["gates"]["gate1"] = {"status": res["status"], "artifact": self.rel(g1), "summary": "%d error(s), %d warning(s); budget %s"
                                 % (len(errs), len(res.get("findings", [])) - len(errs), res.get("budget"))}
         it["composed"] = changed
+        it["scriptSha256"] = self.script_hashes()
         if res["status"] != "PASS":
             it["gates"]["gate2"] = {"status": "NOT_RUN", "summary": "Gate 1 did not pass"}
             self.save(st)
@@ -269,8 +271,20 @@ class Pipeline:
             stale = ["compose error: %s" % e]
         if stale:
             blockers.append("composed scripts out of date: %s" % ", ".join(stale))
+        gated = it.get("scriptSha256")
+        if not gated:
+            blockers.append("no script hashes recorded for this iteration (run gates again)")
+        elif gated != self.script_hashes():
+            blockers.append("scripts changed after the gates ran")
         return (0 if not blockers else 1), {"package": self.id, "iteration": it["n"], "deliverable": not blockers,
-                                            "gates": {g: it["gates"][g]["status"] for g in GATES}, "blockers": blockers}
+                                            "gates": {g: it["gates"][g]["status"] for g in GATES}, "blockers": blockers,
+                                            "scriptSha256": gated or {}}
+
+    def script_hashes(self):
+        """sha256 of each composed script, recorded when the gates run, so /deploy can prove it
+        uploads exactly the bytes that passed (ADR-035)."""
+        return {n: hashlib.sha256((self.pkg / n).read_bytes()).hexdigest()
+                for n in ("detect.ps1", "remediate.ps1") if (self.pkg / n).exists()}
 
     def windows_gate2_passed(self, it):
         a = it["gates"]["gate4"].get("artifact")

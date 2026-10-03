@@ -451,7 +451,7 @@ not objected, can be revisited), `PROPOSED` (awaiting owner), `OPEN`.
   mechanical, error-prone and expensive in tokens, and Gate 1 would only catch the errors
   afterwards. The composer is the same one that builds the test fixtures, so every Gate 1/2
   test also tests it.
-- **Status:** PROPOSED (Phase 4 report).
+- **Status:** ACCEPTED (owner, 2026-10-03).
 
 ## ADR-032 Pipeline driver for /new-remediation
 
@@ -470,7 +470,7 @@ not objected, can be revisited), `PROPOSED` (awaiting owner), `OPEN`.
   - appends metrics to `out/metrics.jsonl` (outcome, repairs, first-iteration gate results,
     failures by rule id, wall time) and, on delivery, copies the final gate artifacts into
     `packages/<id>/evidence/` so they are committed with the package.
-- **Status:** PROPOSED (Phase 4 report).
+- **Status:** ACCEPTED (owner, 2026-10-03).
 
 ## ADR-033 Gate 4 runs the Gate 2 WindowsOnly scenarios
 

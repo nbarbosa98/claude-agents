@@ -13,3 +13,5 @@ Windows-only fleet. Lab tenant only.
   `contract/`, `tools/lint/` rules or the eval answer key need explicit owner approval.
 - Every script is ASCII-only, including the project's own PowerShell tooling.
 - No deployment or promotion without plan-hash approval by the user.
+- Generators write `packages/<id>/src/`; `tools/compose/compose.py` builds the scripts and
+  `tools/pipeline/pipeline.py` runs the gates. Never hand-edit composed scripts or gate results.

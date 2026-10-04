@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "1.0.0",
+  "packageId": "upd-exampleb1",
+  "type": "app-update",
+  "pattern": "B1",
+  "subject": "Example Tool",
+  "request": "TEST FIXTURE - fictional vendor MSI used to test Gates 1 and 2",
+  "confidence": "high",
+  "openQuestions": [],
+  "evidence": [
+    { "field": "downloadUrl", "value": "https://downloads.example.invalid/tool/5.2.0/tool-x64.msi", "source": "fixture", "retrievedAt": "2026-09-28T00:00:00Z" }
+  ],
+  "detection": {
+    "displayNameLike": "Example Tool*",
+    "mainExePaths": ["C:\\Program Files\\Example Tool\\tool.exe"],
+    "userExeRelPaths": ["AppData\\Local\\Example Tool\\tool.exe"],
+    "versionSource": "FileVersion"
+  },
+  "install": {
+    "mechanism": "msi",
+    "downloadUrl": "https://downloads.example.invalid/tool/5.2.0/tool-x64.msi",
+    "expectedSigner": { "CN": "Example Vendor Ltd", "O": "Example Vendor Ltd" },
+    "sha256Published": false
+  },
+  "scope": { "machineInstallerAvailable": true, "decision": "machine-only (D2)" },
+  "ownerApprovals": []
+}

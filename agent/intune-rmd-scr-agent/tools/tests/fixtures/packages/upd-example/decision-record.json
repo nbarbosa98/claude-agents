@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "1.0.0",
+  "packageId": "upd-example",
+  "type": "app-update",
+  "pattern": "A",
+  "subject": "Example App",
+  "request": "TEST FIXTURE - fictional app used to test Gates 1 and 2",
+  "confidence": "high",
+  "openQuestions": [],
+  "evidence": [
+    { "field": "wingetId", "value": "Example.App", "source": "fixture", "retrievedAt": "2026-09-28T00:00:00Z" }
+  ],
+  "detection": {
+    "displayNameLike": "Example App*",
+    "mainExePaths": ["C:\\Program Files\\Example App\\example.exe"],
+    "userExeRelPaths": ["AppData\\Local\\Programs\\Example App\\example.exe"],
+    "versionSource": "FileVersion"
+  },
+  "install": { "mechanism": "winget", "wingetId": "Example.App", "includeUnknown": false },
+  "scope": { "machineInstallerAvailable": true, "decision": "machine-only (D2)" },
+  "ownerApprovals": []
+}

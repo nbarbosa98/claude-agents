@@ -81,8 +81,8 @@ not objected, can be revisited), `PROPOSED` (awaiting owner), `OPEN`.
   **Device configurations** category of the user's Intune role. Source:
   MicrosoftDocs/memdocs `intune/device-management/tools/deploy-remediations.md`
   (commit 4b5429d), section "Permissions".
-- **UNVERIFIED:** exact delegated Graph scope names for deviceHealthScripts write,
-  run-state read and group search. Verified in Phase 5.
+- **Scopes (verified in Phase 5, ADR-035):** DeviceManagementScripts.ReadWrite.All (write),
+  DeviceManagementScripts.Read.All (read), GroupMember.Read.All (group search and counts).
 - **Where it runs:** on the operator's Mac. The cloud build container cannot reach
   `graph.microsoft.com` (network policy) and has no access to the user's sign-in.
 - **Status:** ACCEPTED (N4).
@@ -218,7 +218,13 @@ not objected, can be revisited), `PROPOSED` (awaiting owner), `OPEN`.
     per-app work and no catalog.
 - **Recommendation:** (a). UNVERIFIED until the lab: behaviour under SYSTEM with 64-bit
   Windows PowerShell 5.1, the module's App Installer dependency, and run time.
-- **Status:** PROPOSED.
+- **Decision (owner, Phase 1):** option (b), call `winget.exe` directly.
+- **Consequences:** Pattern A runs on a path Microsoft documents as unsupported. Mitigations:
+  every winget failure maps to `NOT_DETERMINED` (detect) or `FAILED` (remediate), never to a
+  false success; currency is decided by version comparison, not winget text; the path is
+  located by `Get-WingetPath` only. Listed in `docs/limitations.md` (Phase 9) and
+  `references/failure-modes.md` FM-01/FM-02. Revisit if lab results are poor.
+- **Status:** ACCEPTED.
 
 ## ADR-017 Lab VM topology
 
@@ -232,14 +238,360 @@ not objected, can be revisited), `PROPOSED` (awaiting owner), `OPEN`.
   would also receive real policies during tests, which contaminates Gate 4 results.
 - **Why x64:** on Apple-silicon Macs, local hypervisors run Windows 11 on ARM64. There,
   installer selection and emulation differ from an x64 fleet.
-- **Status:** PROPOSED (backend choice pending; see chat).
+- **Backend (owner, Phase 3):** Azure. The owner's Mac is Apple silicon (local VMs would be
+  ARM64) and the owner has an Azure subscription. The Gate 4 VM is an x64 Windows 11
+  Enterprise VM in Azure; the owner creates it later (tools/vm/README.md).
+- **Status:** ACCEPTED.
+
+## ADR-018 Temp files for captured process output
+
+- **Decision:** `Invoke-ProcessWithTimeout` writes stdout/stderr capture files with
+  `[System.IO.Path]::GetTempFileName()` (under SYSTEM: `C:\Windows\Temp`). They are only
+  read, never executed, and deleted in `finally`. Anything executed goes through secure
+  staging (HR-07).
+- **Status:** ACCEPTED (carried over from the original spec's F3).
+
+## ADR-019 Catalog version source for Pattern A
+
+- **Decision:** `winget show --id <id> --exact --source winget --versions` and take the
+  highest line that is a bare version. Header lines are localised but never parse as a
+  version, so the result does not depend on the UI language.
+- **Alternatives:** parsing labelled `winget show` fields (locale-dependent);
+  `winget list` table parsing (column truncation risk); `Microsoft.WinGet.Client`
+  (rejected with ADR-016).
+- **Source:** `--versions` option, MicrosoftDocs/windows-dev-docs
+  `hub/package-manager/winget/show.md`.
+- **UNVERIFIED:** output shape under SYSTEM and in a non-English image. Phase 3.
+- **Status:** ACCEPTED (owner, after Phase 1). Lab evidence in Phase 3 can re-open it.
+
+## ADR-020 Safety layers built in Phase 1
+
+1. **Permissions** (`.claude/settings.json`): `ask` on `tools/graph/write/*` and on edits to
+   `contract/`, `tools/lint/`, `evals/fixtures.json`, `.claude/hooks/`, `.claude/settings.json`;
+   `deny` on reading `config/local.json`, on encoded PowerShell commands, and on raw
+   curl/wget to Graph; `disableBypassPermissionsMode: disable`, because bypass mode skips
+   `ask` prompts.
+2. **tenant-guard hook** (all Bash): Graph writes only through `tools/graph/write/` with an
+   allowlisted `-TenantId`; fails closed without a valid `config/local.json`.
+3. **readonly-guard hook** (subagent-scoped, ops-agent and classifier): Bash limited to
+   single commands running their own read-only tool scripts.
+4. **Tool budgets**: generators have no Bash, no network and no Agent tool; the reviewer is
+   Read/Grep/Glob only.
+5. **Plan-hash approval and in-tool tenant check** (`tid` claim): Phase 5.
+- **Limit (fact):** "a deny or ask rule covers the invocation Claude usually produces and
+  isn't a security boundary" (https://code.claude.com/docs/en/permissions). Hooks match
+  command text the same way. That is why layer 5 re-checks the tenant inside the tool.
+- **Status:** ACCEPTED (implemented; owner review in the Phase 1 report).
+
+## ADR-021 Slash commands as skills
+
+- **Decision:** `/new-remediation`, `/deploy`, `/promote`, `/ops`, `/drift`, `/eval` are
+  skills in `.claude/skills/<name>/SKILL.md`, not `.claude/commands/`. `/triage` is renamed
+  `/ops` (ADR-003, N2).
+- **Why:** commands were merged into skills; `.claude/commands/` still works, but skills
+  support `disable-model-invocation: true`, which stops Claude from starting `/deploy` or
+  `/promote` by itself. Source: https://code.claude.com/docs/en/skills.
+- **Status:** ACCEPTED.
+
+## ADR-022 Template placeholders
+
+- **Decision:** templates use `__NAME__` placeholders instead of `[NAME]`, because
+  `[UPPER]` collides with PowerShell type literals and attribute syntax. Gate 1 checks the
+  pattern `__[A-Z][A-Z0-9_]*__` (plus `<AppDisplayName>`).
+- **Status:** ACCEPTED.
+
+## ADR-023 Contract v1.0.0 details
+
+- 19 tokens across 5 types. Details in `contract/stdout.json` and the generated
+  `references/contract.md`.
+- `ERROR` (unhandled exception) exits 0 in detection and 1 in remediation, following the
+  fail-safe default (ADR-015).
+- `PENDING_REBOOT` is allowed for app-update, because winget can return
+  "Restart your PC to finish installation" (0x8A150109).
+- The remediation script may emit the compliant token (`UP_TO_DATE`, `COMPLIANT`,
+  `NOT_EXPOSED`) when its re-check finds nothing to do (HR-19).
+- **Status:** ACCEPTED (owner, after Phase 1). Further contract changes need owner approval.
+
+## ADR-024 Models
+
+- **Decision:** every agent uses `model: inherit` for now. Right-sizing (for example a
+  smaller model for classifier or ops-agent) waits for eval data (Phase 8).
+- **Status:** DEFAULT.
+
+## ADR-025 winget-pkgs access through a partial git clone
+
+- **Decision:** `tools/classify/winget_manifest_lookup.py` reads
+  https://github.com/microsoft/winget-pkgs through a shallow, tree-less partial clone
+  (`git clone --depth 1 --filter=tree:0 --no-checkout`) cached in `out/cache/winget-pkgs`.
+  Git fetches only the trees and blobs of the package being looked up.
+- **Why not the GitHub API (original spec):** the API is blocked for this repository in the
+  build environment; unauthenticated API use is rate-limited to 60 requests per hour; the
+  git route reads the same source with no token.
+- **Verified facts:**
+  - Manifest path layout: `manifests/<lowercase first character>/<identifier with '.' as '/'>/<version>/<identifier>.installer.yaml`.
+    Source: winget-pkgs `doc/manifest/schema/1.12.0/installer.md` (example
+    `manifests/m/Microsoft/WindowsTerminal/1.9.1942/...`). Multi-dot identifiers are nested
+    folders, observed live: `manifests/m/Microsoft/VisualStudio/2022/Community`.
+  - Field names `Installers[].Architecture`, `InstallerType`, `NestedInstallerType`, `Scope`,
+    `InstallerSha256`, `InstallerUrl`; `InstallerType`, `NestedInstallerType` and `Scope` may
+    also be set at the manifest root. Source: same file, schema 1.12.0 (latest found;
+    1.11.0 does not exist in the repo).
+- **Approximation:** latest version = highest by numeric-first ordering; non-numeric
+  versions produce a warning.
+- **Status:** ACCEPTED (owner, 2026-10-02).
+
+## ADR-026 Gate 1 design
+
+- **Decision:** Python rule engine (`tools/lint/lint.py`) over PowerShell AST facts
+  (`tools/lint/Get-ScriptFacts.ps1`, never executes the script). Runs wherever `pwsh` and
+  Python run (macOS, Linux, Windows). PSScriptAnalyzer is merged in when installed;
+  without it the status is `PASS_PENDING_PSSA`, which is not deliverable.
+- **Budget:** the original spec summed the declared constants. Gate 1 instead sums the
+  timeout argument at each call site, plus 15 s per process-running helper (the
+  `taskkill` wait inside `Invoke-ProcessWithTimeout`), because a constant used twice waits
+  twice. Calls inside loops are flagged for the reviewer.
+- **Canonical helpers** are compared byte for byte; rules that inspect command
+  parameters skip their bodies (they can use splatting, and are reviewed at the source).
+- **Rule catalog:** `tools/lint/README.md`; each rule has a mutation test.
+- **PSScriptAnalyzer settings:** `PSUseCompatibleSyntax` (5.1) and `PSUseCompatibleCommands`
+  (profile `win-48_x64_10.0.17763.0_5.1.17763.316_x64_4.0.30319.42000_framework`);
+  `PSAvoidUsingWriteHost` excluded (Write-Host is the deliberate status channel). Source:
+  MicrosoftDocs/PowerShell-Docs-Modules `reference/docs-conceptual/PSScriptAnalyzer/Rules/`.
+  Not yet run: PowerShell Gallery is blocked in the build environment.
+- **Status:** ACCEPTED (owner, 2026-10-02).
+
+## ADR-027 Gate 2 design
+
+- **Decision:** one generic Pester 5 test file driven by per-type/pattern scenario
+  matrices (`tools/pester/matrices/`), with shared mocks. Scripts are parsed, not run as
+  files; the main block runs with side-effecting helpers mocked.
+- **Coverage:** every token a script can emit, plus `ERROR`, must have a scenario;
+  otherwise Gate 2 fails. This is the mechanical form of "cover every exit path".
+- **Cross-platform:** scenarios that need Windows cmdlet behaviour are marked
+  `WindowsOnly`, skipped elsewhere, and reported as `PASS_PENDING_WINDOWS` (not
+  deliverable); they run in the Gate 4 VM. Off Windows the harness simulates the
+  environment variables and a `C:` drive for path building only.
+- **Matrices are tests:** they are added to the `ask` list in `.claude/settings.json`, so
+  edits need the owner's approval (rule: never weaken a test).
+- **Status:** ACCEPTED (owner, 2026-10-02).
+
+## ADR-028 Defects found and fixed by the Phase 2 tests
+
+1. `return , $array` in `Get-MachineInstalls` / `Get-UserScopeInstalls`, combined with `@()`
+   at the call site, produced a one-element array even when nothing was found, so
+   "not installed" could never be detected. Fixed: helpers emit items; callers use `@()`.
+   Classification: root-cause fix.
+2. `ValidatePattern` is case-insensitive, so `Exit-WithCode` accepted lowercase tokens.
+   Fixed with `ValidateScript({ $_ -cmatch ... })`. Classification: root-cause fix
+   (defence in depth; Gate 1 already required contract literals).
+3. The installed-version routine was duplicated text in two scripts. It is now the canonical
+   helper `Get-InstalledAppVersion`, so detection and remediation cannot diverge (FM-13).
+   Classification: best practice.
+4. winget exit-code constants moved from the helper library to the package constants block,
+   so the helper section contains only functions. Classification: cosmetic.
+- **Status:** ACCEPTED (defect fixes; reported in the Phase 2 report).
+
+## ADR-029 Gate 4 design
+
+- **Transport:** Azure Run Command (`RunPowerShellScript`), driven by the Azure CLI from the
+  operator's Mac. Verified: runs as System, one script at a time, at most 90 minutes, output
+  limited to the last 4,096 bytes (MicrosoftDocs/azure-compute-docs
+  `articles/virtual-machines/windows/run-command.md`). Hence a small guest agent
+  (`GateGuest.ps1`) that returns base64 JSON in chunks, and chunked uploads of a zipped
+  payload (parameter size limits are not documented: UNVERIFIED).
+- **Execution fidelity:** each script runs from a one-shot scheduled task as SYSTEM in 64-bit
+  `powershell.exe -ExecutionPolicy Bypass -File` (Bypass verified for unsigned Remediations),
+  with a hard kill at 600 s. Identity, bitness and PowerShell version are recorded and
+  asserted for every run.
+- **Revert:** snapshot -> new managed disk -> `az vm stop` -> `az vm update --os-disk` ->
+  `az vm start` -> wait for the VM agent. Verified in the same docs repo
+  (`linux/os-disk-swap.md`, `scripts/create-managed-disk-from-snapshot.md`). Only disks the
+  harness created (tag `intune-rmd-gate4=temp`) are deleted.
+- **Safety:** the Azure backend refuses to run unless the signed-in subscription equals
+  `config/local.json` `vm.azure.subscriptionId`; results never contain subscription,
+  resource or tenant IDs.
+- **Tampered installer** without a test hook in production code: the host stages a copy of
+  `remediate.ps1` with `$EXPECTED_SIGNER_O` replaced. The real script is uploaded unchanged
+  (asserted by a test).
+- **Never over-report:** a scenario that cannot run (no user profile, no Pester 5) is
+  `NOT_RUN` and the gate `INCOMPLETE`; a backend without revert (local) is `INCOMPLETE`.
+- **Deviation from the original spec:** scripts are delivered as UTF-8 without BOM, not
+  Windows-1252 (ADR-013; ASCII makes them byte-identical). The original "measure the platform
+  timeout and IME PowerShell version" cannot be done with a scheduled task; it moves to a
+  diagnostic package in the Phase 5 pilot ring.
+- **Status:** ACCEPTED (owner, 2026-10-02).
+
+## ADR-030 PSScriptAnalyzer from source; helper renames
+
+- **PSScriptAnalyzer:** the PowerShell Gallery is blocked in the cloud build environment, so
+  version 1.25.0 was built from github.com/PowerShell/PSScriptAnalyzer (commit 411c3d0) with
+  NuGet packages from nuget.org (`tools/setup/install-psscriptanalyzer-from-source.sh`). On
+  the Mac, `Install-Module PSScriptAnalyzer` is the normal route (PSScriptAnalyzer README).
+- **Findings acted on (Gate 1 now runs with zero PSSA findings on all fixtures):**
+  - `Write-Log` is a built-in cmdlet name in some PowerShell editions
+    (PSAvoidOverwritingBuiltInCmdlets): renamed `Write-RemediationLog`. Best practice.
+  - Plural nouns (PSUseSingularNouns): `Get-MachineInstalls` -> `Get-MachineInstall`,
+    `Get-UserScopeInstalls` -> `Get-UserScopeInstall`. Cosmetic.
+  - Unused constants per role (PSUseDeclaredVarsMoreThanAssignments): fixtures now declare
+    role-specific constants in `<role>.constants.ps1`; Pattern A detection now actually
+    implements `$INCLUDE_UNKNOWN` (unknown version treated as outdated), which it had
+    declared but ignored. Root-cause fix.
+  - Deliberate empty catch in the logger and no ShouldProcess in unattended SYSTEM helpers:
+    suppressed per function with a written justification (`SuppressMessageAttribute`), not
+    by turning the rules off.
+- **Status:** ACCEPTED (defect fixes and renames; reported in the Phase 3 report).
+
+## ADR-031 Generators write parts; a deterministic composer builds the scripts
+
+- **Decision:** generators write only `packages/<id>/src/` (meta, constants, bodies).
+  `tools/compose/compose.py` fills the skeleton templates and copies every needed helper
+  verbatim (including helpers used by helpers) in canonical order. Composed scripts are never
+  edited by hand; `pipeline.py status` blocks delivery if they are out of date.
+- **Why:** rule 6 (prefer deterministic code). Copying about 300 lines of helpers by hand is
+  mechanical, error-prone and expensive in tokens, and Gate 1 would only catch the errors
+  afterwards. The composer is the same one that builds the test fixtures, so every Gate 1/2
+  test also tests it.
+- **Status:** ACCEPTED (owner, 2026-10-03).
+
+## ADR-032 Pipeline driver for /new-remediation
+
+- **Decision:** `tools/pipeline/pipeline.py` owns the bookkeeping of the loop; the
+  orchestrator decides and delegates. It:
+  - composes, then runs Gate 1 and Gate 2 and stops at the first failing gate (one focused
+    set of evidence per iteration);
+  - records Gate 3 from the reviewer's report: any `[FAIL]`, a malformed report, or (for
+    `general`) any `[WARN]` fails it;
+  - runs Gate 4 or records `NOT_RUN`;
+  - extracts failing evidence as `E1..En`; a repair must cite every id, and the fourth repair
+    request returns exit 4 (budget of 3 repairs);
+  - decides deliverability: all four gates `PASS` with artifacts, composed scripts in sync;
+    `PASS_PENDING_WINDOWS` counts only when Gate 4 ran those scenarios on Windows and they
+    passed (ADR-033); `PASS_PENDING_PSSA`, `INCOMPLETE` and `NOT_RUN` never count;
+  - appends metrics to `out/metrics.jsonl` (outcome, repairs, first-iteration gate results,
+    failures by rule id, wall time) and, on delivery, copies the final gate artifacts into
+    `packages/<id>/evidence/` so they are committed with the package.
+- **Status:** ACCEPTED (owner, 2026-10-03).
+
+## ADR-033 Gate 4 runs the Gate 2 WindowsOnly scenarios
+
+- **Defect found in Phase 4:** Gate 2 scenarios marked `WindowsOnly` were documented as
+  "run in the VM", but Gate 4 only ran the helper tests, so `PASS_PENDING_WINDOWS` could never
+  be discharged. Fixed: with `-IncludeWindowsTests`, Gate 4 uploads the package's matrix and
+  runs its WindowsOnly scenarios through the same `Package.Tests.ps1` on Windows PowerShell
+  5.1, on a freshly reverted VM with its own upload (a second defect: the Windows tests reused
+  whatever the last scenario had uploaded).
+- **Status:** ACCEPTED (defect fix; reported in the Phase 4 report).
+
+## ADR-034 Template fixes from the first upd-7zip run
+
+Owner decisions after the Phase 4 end-to-end run (2026-10-03). Each came from a Gate 3 WARN.
+1. **Reboot before success (HR-13), root-cause fix.** Remediation checks the reboot code
+   (`$WINGET_REBOOT_TO_FINISH`, msiexec 3010) before `REMEDIATED`, even when the main exe
+   already shows the new version. Worked examples, reference text and two new Gate 2
+   scenarios enforce it.
+2. **Lowest copy counts (owner: "count as outdated"), root-cause fix.**
+   `Get-InstalledAppVersion` returns the lowest version among machine copies (x64 and x86
+   side by side). Consequence: if winget upgrades only one copy, remediation reports
+   `FAILED` until both are current; this is honest, not a false success.
+3. **Narrow display-name patterns, best practice.** `displayNameLike` must anchor on the
+   exact display-name format from evidence (for example `7-Zip [0-9]*`) so forks never match.
+4. **README budget cannot drift, best practice.** New Gate 1 rule L-README-BUDGET: the
+   README states Gate 1's worst case in a fixed line. FM-02's signature corrected.
+5. **Signer evidence for Pattern A, best practice.** Optional, recorded when available (for
+   /drift); still required for download patterns (HR-08).
+6. **Decision record and constants cannot drift, best practice.** New Gate 1 rule
+   L-DECISION-CONST for the scalar app-update constants.
+- **Status:** ACCEPTED (owner, 2026-10-03; items 3 and 6 are implementation details of the
+  approved fixes).
+
+## ADR-035 Phase 5: Graph deploy and promote
+
+Sources (all read at build time, 2026-10-03):
+[GD] microsoftgraph/microsoft-graph-docs-contrib @4ad99fd37a9e2e8538275a0a9cdff7907052f3ec;
+[MSAL] msal 1.39.0 and msal-extensions 1.3.1 package source (PyPI);
+[ENTRA] MicrosoftDocs/entra-docs main, `docs/identity-platform/` (retrieved 2026-10-03).
+
+**Verified facts used by the tools**
+
+| Fact | Source |
+|---|---|
+| `POST /beta/deviceManagement/deviceHealthScripts` creates, returns 201 | [GD] beta/api/intune-devices-devicehealthscript-create.md |
+| `PATCH .../deviceHealthScripts/{id}` updates, returns 200 | [GD] ...-devicehealthscript-update.md |
+| `POST .../deviceHealthScripts/{id}/assign` with `deviceHealthScriptAssignments`, returns 204 | [GD] ...-devicehealthscript-assign.md |
+| `GET` list, get, `/assignments`, `/deviceRunStates`, `/runSummary` | [GD] ...-list.md, -get.md, assignment-list.md, devicestate-list.md, runsummary-get.md |
+| Properties: displayName, description, publisher, version, detectionScriptContent and remediationScriptContent (Binary, base64), runAsAccount (`system`/`user`), enforceSignatureCheck, runAs32Bit, isGlobalScript (proprietary, read-only), lastModifiedDateTime | [GD] beta/resources/intune-devices-devicehealthscript.md |
+| Assignment: target, runRemediationScript, runSchedule; target `#microsoft.graph.groupAssignmentTarget` with groupId | [GD] ...devicehealthscriptassignment.md, intune-shared-groupassignmenttarget.md |
+| Schedules: RunOnce (date, time, useUtc), Hourly (interval), Daily (time, useUtc); interval "Valid values 1 to 23" | [GD] ...devicehealthscript{runonce,hourly,daily,run,time}schedule.md |
+| Run summary counters: noIssueDetected, issueDetected, detectionScriptError, detectionScriptPending, detectionScriptNotApplicable, issueRemediated, remediationSkipped, issueReoccurred, remediationScriptError | [GD] ...devicehealthscriptrunsummary.md |
+| Device state outputs: preRemediationDetectionScriptOutput, postRemediationDetectionScriptOutput (no remediation stdout field) | [GD] ...devicehealthscriptdevicestate.md |
+| Delegated scope for create/update/assign: **DeviceManagementScripts.ReadWrite.All**; for reads: DeviceManagementScripts.Read.All. (Not DeviceManagementConfiguration.*, as ADR-005 had assumed.) | [GD] permission tables of the files above |
+| Group search: `GET /v1.0/groups?$search="displayName:x"` needs `ConsistencyLevel: eventual`; groupTypes contains `DynamicMembership` for dynamic groups; membershipRule; securityEnabled; mailEnabled | [GD] v1.0/api/group-list.md, v1.0/resources/group.md |
+| Member counts: `/groups/{id}/members/microsoft.graph.user/$count` with `ConsistencyLevel: eventual`, text/plain body; OData cast enabled on members | [GD] v1.0/api/group-list-members.md (example 3), concepts/aad-advanced-queries.md |
+| Group scopes: GroupMember.Read.All is least privileged for members and accepted for list/get (the listed least-privileged for list/get, Group-NestingSupport.ReadWrite.All, is a write scope, so it is not used) | [GD] v1.0/includes/permissions/group-{list,get,list-members}-permissions.md |
+| `tid` in the ID token is the tenant the user signed in to | [ENTRA] id-token-claims-reference.md |
+| Clients must treat access tokens as opaque; so the tid check reads the ID token, not the access token | [ENTRA] access-tokens.md |
+| MSAL: `PublicClientApplication(client_id, authority=..., token_cache=...)`, `acquire_token_silent`, `acquire_token_interactive` (redirect URI `http://localhost`, "Mobile and Desktop application"); ID tokens cached as `IdToken` entries with `secret`, `home_account_id`, `realm` | [MSAL] msal/application.py, msal/token_cache.py |
+| msal-extensions `build_encrypted_persistence` uses the macOS Keychain on darwin | [MSAL] msal_extensions/persistence.py |
+
+**UNVERIFIED (handled defensively)**
+- Whether `assign` replaces or adds to the existing set. The tools send the full intended set
+  and verify the live set afterwards; a mismatch is reported (exit 1), not hidden.
+- Whether `GET` by id always returns script content. If not, apply reports "content not
+  verified" (exit 1) and does not record the deploy as done.
+- The `@odata.type` values are sent with a leading `#` (OData JSON convention); the docs'
+  examples use both forms.
+- `interval` for a RunOnce schedule is sent as 1.
+- The mapping of device `detectionState`/`remediationState` values to outcomes is not
+  documented, so promotion uses the documented runSummary counters instead.
+- OData query options on the Remediations list are not documented; lookup by name is
+  client-side.
+- The `microsoft.graph.device` cast on group members is inferred from "OData cast is
+  enabled"; only the user cast has a documented example.
+
+**Design (implementation choices; owner review)**
+- Python + MSAL, delegated, authority pinned to the tenant; token cache encrypted (Keychain)
+  or in memory, never a plaintext file.
+- Layout: `tools/graph/read/` (groups, scripts; ops-agent may run these), `tools/graph/plan/`
+  (plans; reads only, writes `out/deploy/`), `tools/graph/write/apply.py` (the only writer).
+- Plan = canonical JSON, sha256; the user types the first 12 hex characters (or the full
+  hash). Plans expire after 60 minutes, cannot be replayed (receipt exists), and fail if the
+  plan file, the package bytes, or the live script/assignments changed since planning.
+- The pipeline records each script's sha256 when the gates run; `status` blocks if the
+  files changed afterwards, and deploy uploads only those exact bytes.
+- Display name = package id. Version = first 12 hex of the content hash.
+- Hard rules enforced by the tool, not by config: SYSTEM, 64-bit, signature check off.
+- Updating a script that is assigned beyond the pilot stops with `UPDATE_REACHES_ALL` and
+  needs an explicit `--confirm-update-all` (recorded in the hashed plan), the same pattern
+  as the same-group rule.
+- Promotion criteria renamed to what Graph can measure: `maxRecurredCycles` became
+  `maxIssueReoccurredDevices` (runSummary.issueReoccurredDeviceCount), and
+  `maxScriptErrorDevices` was added. All absolute counts.
+- Receipts, plans, diffs and backups live in `out/deploy/<id>/` (git-ignored; they hold
+  group and script ids).
+- **Status:** ACCEPTED (owner, 2026-10-04: design approved). Built and tested against a fake
+  Graph; not yet run against a tenant, so the UNVERIFIED items above stay open.
+
+## ADR-036 Tenant id on the command line (open question)
+
+- **Problem:** the tenant-guard hook requires `--tenant <guid>` on every write command, and
+  the orchestrator may not read `config/local.json`. So the tenant GUID has to reach the model
+  in the operator's local session (the user types it, or the command shows it).
+- **Options:** (a) keep as is: the user gives the GUID in the local session; (b) accept
+  `--tenant lab` as an alias for the single allowlisted tenant, resolved inside the tools,
+  with the hook allowing that alias when the allowlist has exactly one entry. Option b
+  changes `.claude/hooks/`, so it needs owner approval.
+- **Decision:** option (a). On 2026-10-04 the owner supplied the lab tenant GUID in the
+  session. It is not recorded in the repo; it belongs in `config/local.json` (git-ignored).
+  No change to `.claude/hooks/`.
+- **Status:** DEFAULT (the owner gave the GUID and did not ask for the alias; option (b) can
+  be revisited).
 
 ## Open
 
-- **D6:** hypervisor, Mac chip (Apple silicon vs Intel), VM access method, snapshot
-  revert command, Windows edition/build/UI language. Needed before Phase 3.
-- **Network allowlist:** whether to add `learn.microsoft.com` and
-  `www.powershellgallery.com` to the build environment. Without PSGallery,
-  PSScriptAnalyzer can only run on the Mac.
+- **D6:** resolved by ADR-017 (Azure, x64). Windows build and UI language are recorded from
+  the VM by `Initialize-GateVm.ps1`; a non-English second image is still optional.
+- **Network allowlist:** `learn.microsoft.com` and `www.powershellgallery.com` remain
+  blocked in the build environment; worked around (docs source repos, PSScriptAnalyzer built
+  from source, ADR-030).
 - **Licensing (verified, for the lab):** Remediations need Windows Enterprise E3/E5
   (or other listed licenses) for device users. Source: deploy-remediations.md line 49-51.

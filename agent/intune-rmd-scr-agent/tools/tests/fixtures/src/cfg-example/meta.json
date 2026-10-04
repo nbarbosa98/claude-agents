@@ -1,0 +1,6 @@
+{
+  "type": "config-change",
+  "subject": "Example App hardening",
+  "summary": "Test fixture: desired-state registry value and service start type",
+  "generator": "fixture-composer"
+}

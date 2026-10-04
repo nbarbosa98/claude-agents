@@ -1,0 +1,6 @@
+{
+  "type": "app-update",
+  "subject": "7-Zip",
+  "summary": "Keeps machine-scope 7-Zip at the winget catalog version (Pattern A, winget id 7zip.7zip)",
+  "generator": "app-update-agent 2026-10-03"
+}

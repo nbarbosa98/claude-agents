@@ -45,7 +45,7 @@ linter checks the order and presence.
                        version, generator version. ASCII only.
 2. Constants block     all tunables, including every timeout in seconds
                        ($TIMEOUT_*), so the linter can sum them (<= 540 s).
-3. Helpers             Write-Log, Exit-WithCode (throws ExitCalled:<n> under test,
+3. Helpers             Write-RemediationLog, Exit-WithCode (throws ExitCalled:<n> under test,
                        exits in production), Invoke-WithTimeout, plus type-specific
                        helpers. Only helpers the script uses are included.
 4. Main                try { ... } catch { if ExitCalled:* rethrow; else log,

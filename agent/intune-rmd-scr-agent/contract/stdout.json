@@ -1,0 +1,374 @@
+{
+  "contractVersion": "1.0.0",
+  "description": "Single source of truth for status tokens, exit codes and which script types and roles may emit them. Consumed by the linter (Gate 1), the reviewer (Gate 3), ops-agent triage and tools/contract/build_contract_doc.py. Changes need explicit owner approval.",
+  "format": {
+    "line": "<TOKEN> | <message>",
+    "separator": " | ",
+    "emitter": "Exit-WithCode (Write-Host, then exit). Exactly one status line per run.",
+    "maxLineChars": 512,
+    "platformMaxOutputChars": 2048,
+    "platformSource": "MicrosoftDocs/memdocs intune/device-management/tools/deploy-remediations.md @4b5429d, 'Script requirements' (2,048 characters; remediation runs only on detection exit 1)",
+    "placeholderSyntax": "{Name}: filled by the script at run time. Subject means the app, setting group or check name declared in the package constants."
+  },
+  "types": [
+    "app-update",
+    "vuln-remediation",
+    "config-change",
+    "audit",
+    "general"
+  ],
+  "scriptsByType": {
+    "app-update": [
+      "detect",
+      "remediate"
+    ],
+    "vuln-remediation": [
+      "detect",
+      "remediate"
+    ],
+    "config-change": [
+      "detect",
+      "remediate"
+    ],
+    "audit": [
+      "detect"
+    ],
+    "general": [
+      "detect",
+      "remediate"
+    ]
+  },
+  "tokens": [
+    {
+      "token": "NOT_INSTALLED",
+      "types": [
+        "app-update"
+      ],
+      "emits": [
+        {
+          "script": "detect",
+          "exitCode": 0
+        },
+        {
+          "script": "remediate",
+          "exitCode": 0
+        }
+      ],
+      "messageTemplate": "{AppName} not found",
+      "meaning": "No machine-scope or user-scope install was found. In remediation: the app disappeared since detection; nothing to do."
+    },
+    {
+      "token": "UP_TO_DATE",
+      "types": [
+        "app-update"
+      ],
+      "emits": [
+        {
+          "script": "detect",
+          "exitCode": 0
+        },
+        {
+          "script": "remediate",
+          "exitCode": 0
+        }
+      ],
+      "messageTemplate": "{AppName} {InstalledVersion} is up to date",
+      "meaning": "Installed version is at least the target version. In remediation: state was already compliant, nothing changed."
+    },
+    {
+      "token": "OUTDATED",
+      "types": [
+        "app-update"
+      ],
+      "emits": [
+        {
+          "script": "detect",
+          "exitCode": 1
+        }
+      ],
+      "messageTemplate": "{AppName} {InstalledVersion} is outdated. Target {TargetVersion}",
+      "meaning": "Installed version is below the target version; remediation will run."
+    },
+    {
+      "token": "SKIPPED_USER_SCOPE",
+      "types": [
+        "app-update",
+        "vuln-remediation"
+      ],
+      "emits": [
+        {
+          "script": "detect",
+          "exitCode": 0
+        },
+        {
+          "script": "remediate",
+          "exitCode": 0
+        }
+      ],
+      "messageTemplate": "{AppName} found in user scope only. Skipped",
+      "meaning": "Only per-user installs exist. A machine-scope remediation cannot fix them (ADR-012, D2)."
+    },
+    {
+      "token": "STAGED",
+      "types": [
+        "app-update",
+        "vuln-remediation"
+      ],
+      "emits": [
+        {
+          "script": "detect",
+          "exitCode": 0
+        },
+        {
+          "script": "remediate",
+          "exitCode": 0
+        }
+      ],
+      "messageTemplate": "{AppName} update staged. Waiting for app restart",
+      "meaning": "A newer version is staged and becomes active when the app restarts. The app is NOT patched on disk yet (ADR-011, D1)."
+    },
+    {
+      "token": "REMEDIATED",
+      "types": [
+        "app-update",
+        "config-change",
+        "general"
+      ],
+      "emits": [
+        {
+          "script": "remediate",
+          "exitCode": 0
+        }
+      ],
+      "messageTemplate": "{AppName} updated to {NewVersion}",
+      "meaning": "Change applied AND verified by a post-check.",
+      "messageTemplateByType": {
+        "config-change": "{Subject} remediated: {Detail}",
+        "general": "{Subject} remediated: {Detail}"
+      }
+    },
+    {
+      "token": "MITIGATED",
+      "types": [
+        "vuln-remediation"
+      ],
+      "emits": [
+        {
+          "script": "remediate",
+          "exitCode": 0
+        }
+      ],
+      "messageTemplate": "{AppName} {CveIds} mitigated",
+      "meaning": "Exposure closed AND verified by a post-check."
+    },
+    {
+      "token": "NOT_APPLICABLE",
+      "types": [
+        "vuln-remediation",
+        "general"
+      ],
+      "emits": [
+        {
+          "script": "detect",
+          "exitCode": 0
+        },
+        {
+          "script": "remediate",
+          "exitCode": 0
+        }
+      ],
+      "messageTemplate": "{Subject} not present. Not applicable",
+      "meaning": "The software or component the package targets is absent."
+    },
+    {
+      "token": "NOT_EXPOSED",
+      "types": [
+        "vuln-remediation"
+      ],
+      "emits": [
+        {
+          "script": "detect",
+          "exitCode": 0
+        },
+        {
+          "script": "remediate",
+          "exitCode": 0
+        }
+      ],
+      "messageTemplate": "{AppName} not exposed to {CveIds}",
+      "meaning": "Present but outside the affected range, or the mitigation is in place."
+    },
+    {
+      "token": "EXPOSED",
+      "types": [
+        "vuln-remediation"
+      ],
+      "emits": [
+        {
+          "script": "detect",
+          "exitCode": 1
+        }
+      ],
+      "messageTemplate": "{AppName} {InstalledVersion} exposed to {CveIds}",
+      "meaning": "Inside the affected range and not mitigated; remediation will run."
+    },
+    {
+      "token": "COMPLIANT",
+      "types": [
+        "config-change",
+        "general"
+      ],
+      "emits": [
+        {
+          "script": "detect",
+          "exitCode": 0
+        },
+        {
+          "script": "remediate",
+          "exitCode": 0
+        }
+      ],
+      "messageTemplate": "{Subject} compliant",
+      "meaning": "Every desired-state entry matches."
+    },
+    {
+      "token": "DRIFTED",
+      "types": [
+        "config-change"
+      ],
+      "emits": [
+        {
+          "script": "detect",
+          "exitCode": 1
+        }
+      ],
+      "messageTemplate": "{Subject} drifted: {DriftCount} setting(s): {DriftNames}",
+      "meaning": "At least one desired-state entry differs; remediation will run."
+    },
+    {
+      "token": "NONCOMPLIANT",
+      "types": [
+        "general"
+      ],
+      "emits": [
+        {
+          "script": "detect",
+          "exitCode": 1
+        }
+      ],
+      "messageTemplate": "{Subject} noncompliant: {Detail}",
+      "meaning": "General-type issue found; remediation will run."
+    },
+    {
+      "token": "PENDING_REBOOT",
+      "types": [
+        "app-update",
+        "vuln-remediation",
+        "config-change",
+        "general"
+      ],
+      "emits": [
+        {
+          "script": "detect",
+          "exitCode": 0
+        },
+        {
+          "script": "remediate",
+          "exitCode": 0
+        }
+      ],
+      "messageTemplate": "{Subject} change applied. Waiting for reboot",
+      "meaning": "Change is written but only takes effect after a reboot. Never reported as fixed."
+    },
+    {
+      "token": "AUDIT_CLEAN",
+      "types": [
+        "audit"
+      ],
+      "emits": [
+        {
+          "script": "detect",
+          "exitCode": 0
+        }
+      ],
+      "messageTemplate": "{Subject} audit clean: {Summary}",
+      "meaning": "No finding."
+    },
+    {
+      "token": "AUDIT_FINDING",
+      "types": [
+        "audit"
+      ],
+      "emits": [
+        {
+          "script": "detect",
+          "exitCode": 1
+        }
+      ],
+      "messageTemplate": "{Subject} audit finding: {Summary}",
+      "meaning": "Finding present. No remediation script exists, so nothing changes on the device."
+    },
+    {
+      "token": "NOT_DETERMINED",
+      "types": [
+        "app-update",
+        "vuln-remediation",
+        "config-change",
+        "audit",
+        "general"
+      ],
+      "emits": [
+        {
+          "script": "detect",
+          "exitCode": 0
+        }
+      ],
+      "messageTemplate": "{Subject} state not determined: {Reason}",
+      "meaning": "State could not be established (source unreachable, tool missing, unparseable version). Fail-safe: exit 0, no remediation (ADR-015)."
+    },
+    {
+      "token": "FAILED",
+      "types": [
+        "app-update",
+        "vuln-remediation",
+        "config-change",
+        "general"
+      ],
+      "emits": [
+        {
+          "script": "remediate",
+          "exitCode": 1
+        }
+      ],
+      "messageTemplate": "{Subject} update to {TargetVersion} failed: {Reason}",
+      "meaning": "Remediation attempted and did not reach the desired state, or a trust check refused the installer. For non-update types the message uses 'change failed' wording: see messageTemplateByType.",
+      "messageTemplateByType": {
+        "vuln-remediation": "{AppName} {CveIds} remediation failed: {Reason}",
+        "config-change": "{Subject} change failed: {Reason}",
+        "general": "{Subject} change failed: {Reason}"
+      }
+    },
+    {
+      "token": "ERROR",
+      "types": [
+        "app-update",
+        "vuln-remediation",
+        "config-change",
+        "audit",
+        "general"
+      ],
+      "emits": [
+        {
+          "script": "detect",
+          "exitCode": 0
+        },
+        {
+          "script": "remediate",
+          "exitCode": 1
+        }
+      ],
+      "messageTemplate": "{Subject} script error: {Reason}",
+      "meaning": "Unhandled exception caught by the outer catch. Detection exits 0 (fail-safe, ADR-015); remediation exits 1. Always a script-defect signal for ops-agent."
+    }
+  ]
+}

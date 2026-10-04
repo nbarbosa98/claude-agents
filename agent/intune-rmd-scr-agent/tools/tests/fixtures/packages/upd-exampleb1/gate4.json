@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "1.0.0",
+  "packageId": "upd-exampleb1",
+  "outdatedInstall": { "method": "url", "url": "https://downloads.example.invalid/tool/5.1.0/tool-x64.msi", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "args": [] },
+  "versionCheck": { "path": "C:\\Program Files\\Example Tool\\tool.exe", "target": "5.2.0.0" },
+  "blockHosts": ["downloads.example.invalid"],
+  "userScope": { "relPath": "AppData\\Local\\Example Tool\\tool.exe", "plantFrom": "C:\\Windows\\System32\\notepad.exe" },
+  "scenarios": ["main", "absent", "blocked-endpoint", "tampered-installer", "user-scope-only"]
+}

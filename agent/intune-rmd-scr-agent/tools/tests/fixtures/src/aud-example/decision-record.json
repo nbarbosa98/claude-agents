@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "1.0.0",
+  "packageId": "aud-example",
+  "type": "audit",
+  "pattern": null,
+  "subject": "Example App legacy plugins",
+  "request": "TEST FIXTURE - fictional audit used to test Gates 1 and 2",
+  "confidence": "high",
+  "openQuestions": [],
+  "evidence": [],
+  "ownerApprovals": []
+}

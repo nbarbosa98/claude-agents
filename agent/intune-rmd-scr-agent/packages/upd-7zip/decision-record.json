@@ -1,0 +1,133 @@
+{
+  "schemaVersion": "1.0.0",
+  "packageId": "upd-7zip",
+  "type": "app-update",
+  "pattern": "A",
+  "subject": "7-Zip",
+  "request": "keep 7-Zip up to date",
+  "confidence": "medium",
+  "openQuestions": [],
+  "evidence": [
+    {
+      "field": "wingetId",
+      "value": "7zip.7zip",
+      "source": "https://github.com/microsoft/winget-pkgs/blob/5805efb1ae388d417da7364a11adc0e4b6a2d9f4/manifests/7/7zip/7zip/26.03/7zip.7zip.installer.yaml",
+      "retrievedAt": "2026-10-03T11:38:23Z"
+    },
+    {
+      "field": "latestCatalogVersion",
+      "value": "26.03 (informational; Pattern A reads the catalog version at run time)",
+      "source": "https://github.com/microsoft/winget-pkgs/blob/5805efb1ae388d417da7364a11adc0e4b6a2d9f4/manifests/7/7zip/7zip/26.03/7zip.7zip.installer.yaml",
+      "retrievedAt": "2026-10-03T11:38:23Z"
+    },
+    {
+      "field": "packageName",
+      "value": "7-Zip (Publisher: Igor Pavlov - manifest display value, not the Authenticode signer)",
+      "source": "https://github.com/microsoft/winget-pkgs/blob/5805efb1ae388d417da7364a11adc0e4b6a2d9f4/manifests/7/7zip/7zip/26.03/7zip.7zip.locale.en-US.yaml",
+      "retrievedAt": "2026-10-03T11:40:00Z"
+    },
+    {
+      "field": "installerTypesAndScope",
+      "value": "exe (x86, x64, arm, arm64) and wix (x86, x64); Scope: machine for all installers; UpgradeBehavior: install; all installers carry InstallerSha256",
+      "source": "https://github.com/microsoft/winget-pkgs/blob/5805efb1ae388d417da7364a11adc0e4b6a2d9f4/manifests/7/7zip/7zip/26.03/7zip.7zip.installer.yaml",
+      "retrievedAt": "2026-10-03T11:38:23Z"
+    },
+    {
+      "field": "defaultInstallLocation",
+      "value": "x64 wix: %ProgramFiles%\\7-Zip; x86 wix: %ProgramFiles(x86)%\\7-Zip (no AppsAndFeaturesEntries or InstallationMetadata in the manifest)",
+      "source": "https://github.com/microsoft/winget-pkgs/blob/5805efb1ae388d417da7364a11adc0e4b6a2d9f4/manifests/7/7zip/7zip/26.03/7zip.7zip.installer.yaml",
+      "retrievedAt": "2026-10-03T11:41:00Z"
+    },
+    {
+      "field": "exeInstallerRegistryAndLocation",
+      "value": "Vendor EXE installer writes HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\7-Zip with DisplayName = '7-Zip ' + MY_VERSION + arch postfix (e.g. ' (x64)'), DisplayVersion = MY_VERSION_NUMBERS; default dir = ProgramFilesDir + '7-Zip\\'; g_AllUsers True; installs 7zFM.exe",
+      "source": "https://github.com/ip7z/7zip/blob/26.03/C/Util/7zipInstall/7zipInstall.c",
+      "retrievedAt": "2026-10-03T11:43:00Z"
+    },
+    {
+      "field": "msiProductNameAndLocation",
+      "value": "MSI Product Name = '7-Zip ' + MmVer + CpuPostfix, Version = MmmmVer (26.03.00.0); INSTALLDIR '7-Zip' under ProgramFilesFolder / ProgramFiles64Folder; 7zFM.exe installed; ALLUSERS=2",
+      "source": "https://github.com/ip7z/7zip/blob/26.03/DOC/7zip.wxs",
+      "retrievedAt": "2026-10-03T11:45:00Z"
+    },
+    {
+      "field": "displayNameLike",
+      "value": "7-Zip*",
+      "source": "https://github.com/ip7z/7zip/blob/26.03/C/Util/7zipInstall/7zipInstall.c ; https://github.com/ip7z/7zip/blob/26.03/DOC/7zip.wxs",
+      "retrievedAt": "2026-10-03T11:45:00Z"
+    },
+    {
+      "field": "mainExePaths",
+      "value": "C:\\Program Files\\7-Zip\\7zFM.exe ; C:\\Program Files (x86)\\7-Zip\\7zFM.exe (folder from winget DefaultInstallLocation and vendor installer sources; exe name from vendor installer sources; system drive C: assumed as in the fixture convention)",
+      "source": "https://github.com/microsoft/winget-pkgs/blob/5805efb1ae388d417da7364a11adc0e4b6a2d9f4/manifests/7/7zip/7zip/26.03/7zip.7zip.installer.yaml ; https://github.com/ip7z/7zip/blob/26.03/C/Util/7zipInstall/7zipInstall.c ; https://github.com/ip7z/7zip/blob/26.03/DOC/7zip.wxs",
+      "retrievedAt": "2026-10-03T11:45:00Z"
+    },
+    {
+      "field": "versionSource",
+      "value": "FileVersion: binary FILEVERSION = MY_VER_MAJOR,MY_VER_MINOR,MY_VER_BUILD,0 = 26,3,0,0, which normalises to the same [version] as the catalog '26.03' (26.3). Registry DisplayVersion differs by installer type ('26.03' EXE vs '26.03.00.0' MSI) though both normalise equal; FileVersion is first in HR-12 trust order.",
+      "source": "https://github.com/ip7z/7zip/blob/26.03/C/7zVersion.h ; https://github.com/ip7z/7zip/blob/26.03/C/7zVersion.rc",
+      "retrievedAt": "2026-10-03T11:46:00Z"
+    },
+    {
+      "field": "expectedSigner",
+      "value": "NOT RECORDED - no evidence retrieved for the Authenticode signer of the 7-Zip installers. Not required for Pattern A (winget verifies the manifest InstallerSha256).",
+      "source": "n/a",
+      "retrievedAt": "2026-10-03T11:46:00Z"
+    },
+    {
+      "field": "sha256Published",
+      "value": "Vendor-published SHA256: not verified (no vendor page checked). The winget manifest carries InstallerSha256 for every installer.",
+      "source": "https://github.com/microsoft/winget-pkgs/blob/5805efb1ae388d417da7364a11adc0e4b6a2d9f4/manifests/7/7zip/7zip/26.03/7zip.7zip.installer.yaml",
+      "retrievedAt": "2026-10-03T11:38:23Z"
+    },
+    {
+      "field": "displayNameLike",
+      "value": "7-Zip [0-9]*",
+      "source": "https://github.com/ip7z/7zip/blob/26.03/C/Util/7zipInstall/7zipInstall.c (k_7zip_with_Ver_base L\"7-Zip \" LLL(MY_VERSION), written as DisplayName) and https://github.com/ip7z/7zip/blob/26.03/DOC/7zip.wxs (Name=\"$(var.ProductName) $(var.MmVer)$(var.CpuPostfix)\", ProductName 7-Zip)",
+      "retrievedAt": "2026-10-03T12:30:00Z"
+    }
+  ],
+  "detection": {
+    "displayNameLike": "7-Zip [0-9]*",
+    "mainExePaths": [
+      "C:\\Program Files\\7-Zip\\7zFM.exe",
+      "C:\\Program Files (x86)\\7-Zip\\7zFM.exe"
+    ],
+    "userExeRelPaths": [],
+    "versionSource": "FileVersion"
+  },
+  "install": {
+    "mechanism": "winget",
+    "wingetId": "7zip.7zip",
+    "includeUnknown": false
+  },
+  "scope": {
+    "machineInstallerAvailable": true,
+    "decision": "machine-only (D2)"
+  },
+  "ownerApprovals": [
+    {
+      "what": "userExeRelPaths left empty (no documented per-user install folder); per-user MSI copies are still found through the loaded-hive HKU uninstall scan while the user is signed in (inference, to confirm in Gate 4)",
+      "when": "2026-10-03",
+      "quote": "Accepted",
+      "question": "userExeRelPaths: no evidence of a per-user install location. The vendor EXE installer is all-users only (7zipInstall.c: '#define g_AllUsers True', writes HKLM Uninstall\\7-Zip) and winget lists only machine-scope installers, but the vendor MSI sets ALLUSERS=2 (DOC/7zip.wxs), so a per-user MSI install is possible and its folder is not documented. Proposed: leave userExeRelPaths empty (a per-user-only copy would then report NOT_INSTALLED instead of SKIPPED_USER_SCOPE; nothing is changed either way). Owner to confirm or supply a path."
+    }
+  ],
+  "verification": [
+    {
+      "by": "orchestrator",
+      "when": "2026-10-03",
+      "checked": "raw winget-pkgs installer manifest at 5805efb (Scope machine, SHA256 on every installer); ip7z/7zip@26.03 C/Util/7zipInstall/7zipInstall.c (g_AllUsers True, HKLM Uninstall\\7-Zip, DisplayName '7-Zip <ver>', DisplayVersion MY_VERSION_NUMBERS, 7zFM.exe) and C/7zVersion.h (26.3.0, '26.03')"
+    },
+    {
+      "by": "orchestrator",
+      "when": "2026-10-03",
+      "checked": "7zip.7zip versions in microsoft/winget-pkgs at 5805efb1ae (git ls-tree manifests/7/7zip/7zip/): 16.04 ... 24.09 ... 26.03; 24.09 used as the Gate 4 outdated version"
+    },
+    {
+      "by": "orchestrator",
+      "when": "2026-10-03",
+      "checked": "displayNameLike narrowed from '7-Zip*' to '7-Zip [0-9]*' (ADR-034 item 3, reviewer FM-04 WARN); both installers write '7-Zip <version><suffix>'"
+    }
+  ]
+}

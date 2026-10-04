@@ -7,3 +7,7 @@ config/local.json
 # Run artifacts
 out/
 *.log
+
+# Python bytecode
+__pycache__/
+*.pyc

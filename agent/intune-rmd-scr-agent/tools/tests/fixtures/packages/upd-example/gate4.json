@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "1.0.0",
+  "packageId": "upd-example",
+  "outdatedInstall": { "method": "winget", "id": "Example.App", "version": "1.0.0" },
+  "versionCheck": { "path": "C:\\Program Files\\Example App\\example.exe", "target": "catalog" },
+  "blockHosts": ["cdn.winget.microsoft.com"],
+  "userScope": { "relPath": "AppData\\Local\\Programs\\Example App\\example.exe", "plantFrom": "C:\\Windows\\System32\\notepad.exe" },
+  "scenarios": ["main", "absent", "blocked-endpoint", "tampered-installer", "user-scope-only"]
+}

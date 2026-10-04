@@ -13,4 +13,8 @@ A skill that exists only to support one agent ships inside that agent's plugin u
 
 Register the plugin in `.claude-plugin/marketplace.json` with `"source": "./skill/<plugin-name>"`, and follow the skill rules in [`SECURITY.md`](../SECURITY.md#skill--skills).
 
-_No skills published yet._
+## Published
+
+| Plugin | What it does | Components | Status |
+| --- | --- | --- | --- |
+| [`doc-skill`](doc-skill) | Documents the process just carried out, or any topic you name, in a fixed structure (Title, Summary, Scope, Details or Step by step, Additional considerations, References) and saves it as PDF, HTML, MD, TXT or DOCX | 1 skill (`/doc-skill`) | `0.1.0` — beta |

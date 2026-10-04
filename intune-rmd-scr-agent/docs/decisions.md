@@ -568,7 +568,8 @@ Sources (all read at build time, 2026-10-03):
   `maxScriptErrorDevices` was added. All absolute counts.
 - Receipts, plans, diffs and backups live in `out/deploy/<id>/` (git-ignored; they hold
   group and script ids).
-- **Status:** PROPOSED (built and tested against a fake Graph; not yet run against a tenant).
+- **Status:** ACCEPTED (owner, 2026-10-04: design approved). Built and tested against a fake
+  Graph; not yet run against a tenant, so the UNVERIFIED items above stay open.
 
 ## ADR-036 Tenant id on the command line (open question)
 
@@ -579,7 +580,11 @@ Sources (all read at build time, 2026-10-03):
   `--tenant lab` as an alias for the single allowlisted tenant, resolved inside the tools,
   with the hook allowing that alias when the allowlist has exactly one entry. Option b
   changes `.claude/hooks/`, so it needs owner approval.
-- **Status:** OPEN (owner decision).
+- **Decision:** option (a). On 2026-10-04 the owner supplied the lab tenant GUID in the
+  session. It is not recorded in the repo; it belongs in `config/local.json` (git-ignored).
+  No change to `.claude/hooks/`.
+- **Status:** DEFAULT (the owner gave the GUID and did not ask for the alias; option (b) can
+  be revisited).
 
 ## Open
 

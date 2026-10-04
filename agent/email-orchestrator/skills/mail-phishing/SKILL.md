@@ -1,5 +1,5 @@
 ---
-name: phishing-detection
+name: mail-phishing
 description: Scan the user's connected mailboxes (Gmail, Outlook, others) for likely phishing, impersonation, business-email-compromise, and scam messages, and explain the evidence. Use when the user asks if an email is safe, legit, a scam, or phishing, or asks for a security check of their inbox.
 argument-hint: "[time window or a specific message/sender]"
 ---
@@ -52,7 +52,7 @@ Standard advice:
 - Report it using the provider's built-in "Report phishing" button. This trains the provider's filters better than moving the message yourself.
 - If the user already clicked or entered credentials: change that password from a trusted device, revoke sessions, and check MFA. Treat this as urgent and say so plainly.
 
-## Actions (only after confirmation, per inbox-cleanup)
+## Actions (only after confirmation, per mail-clean)
 
 - Label or categorize as `EO/Suspicious`.
 - Mark as spam/junk if the provider supports it.

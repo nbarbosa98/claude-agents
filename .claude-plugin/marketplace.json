@@ -11,6 +11,11 @@
       "name": "email-orchestrator",
       "source": "./agent/email-orchestrator",
       "description": "Cross-provider email assistant: briefings, auto-categorization, unanswered-email alerts, phishing detection, confirmed inbox cleanup, and approval-gated drafting and sending across Gmail, Outlook, and other connected mail services."
+    },
+    {
+      "name": "doc-skill",
+      "source": "./skill/doc-skill",
+      "description": "Writes a structured document (Title, Summary, Scope, Details or Step by step, Additional considerations, References) about the process just carried out in the conversation or about any topic you name, and saves it as PDF, HTML, MD, TXT or DOCX."
     }
   ]
 }
